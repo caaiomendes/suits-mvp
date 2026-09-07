@@ -1,4 +1,5 @@
 import { loadAgentSystemPrompt } from "@/lib/agents";
+import { isAllowedChatModel } from "@/lib/models";
 import {
   OPENROUTER_CHAT_URL,
   buildOpenRouterMessages,
@@ -44,6 +45,16 @@ export async function POST(request: Request) {
   if (!model || !agentId || !Array.isArray(messages) || messages.length === 0) {
     return Response.json(
       { error: "Informe model, agentId e ao menos uma mensagem." },
+      { status: 400 },
+    );
+  }
+
+  if (!isAllowedChatModel(model)) {
+    return Response.json(
+      {
+        error:
+          "Modelo não permitido. Use um dos modelos comerciais da lista.",
+      },
       { status: 400 },
     );
   }

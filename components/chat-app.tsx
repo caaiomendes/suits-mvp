@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { filesToAttachments, isAcceptedFile } from "@/lib/attachments";
-import { DEFAULT_MODEL_ID } from "@/lib/models";
+import { DEFAULT_MODEL_ID, isAllowedChatModel } from "@/lib/models";
 import { readChatSse } from "@/lib/sse";
 import type {
   AgentInfo,
@@ -61,6 +61,12 @@ export function ChatApp() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!isAllowedChatModel(model)) {
+      setModel(DEFAULT_MODEL_ID);
+    }
+  }, [model]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -353,7 +359,11 @@ export function ChatApp() {
         agentId={agentId}
         onAgentChange={setAgentId}
         model={model}
-        onModelChange={setModel}
+        onModelChange={(id) => {
+          if (isAllowedChatModel(id)) {
+            setModel(id);
+          }
+        }}
         promptTokens={totals.promptTokens}
         completionTokens={totals.completionTokens}
         embeddingTokens={totals.embeddingTokens}
