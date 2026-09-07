@@ -7,8 +7,9 @@ Auth and a database are intentionally out of scope. Nothing is persisted: refres
 ## Stack
 
 - Next.js (App Router) + TypeScript + Tailwind CSS
+- **OpenRouter only** (commercial chat + embeddings). No Ollama, vLLM, or other self-hosted LLM.
 - `POST /api/chat` proxies OpenRouter `chat/completions` with SSE
-- Server-side RAG over the full `Arquivos` legislation/jurisprudence corpus
+- Server-side RAG over the **full** `Arquivos` chunk index (OpenRouter embeddings when present, plus BM25 / artigo grep)
 - System prompts are files `01`–`07` under `prompts/criminalista/` (never sent to the client)
 
 Criminalista system message order (server-only concatenate):
@@ -62,25 +63,22 @@ pnpm ingest:rag:embed    # same + OpenRouter embeddings (needs OPENROUTER_API_KE
 1. Confirm **Criminalista** in the agent selector (loads `01`–`07` on the server).
 2. Pick a default model or paste any OpenRouter model id.
 3. Ask about an article or attach a PDF/TXT/DOCX/image.
-4. The server streams the answer. If you named an artigo/lei, a few short corpus excerpts may appear as sources in the sidebar. Cost updates after each turn (chat USD; embeddings only if you later enable vector RAG).
+4. The server retrieves from the **full** Arquivos index (OpenRouter embeddings + BM25), injects only a few short excerpts, streams the answer, and updates the USD sidebar.
 5. Refresh the tab to start a new session.
 
 ## Corpus `arquivos/` (do not dump into the system prompt)
 
 The Drive folder **Arquivos** (CP, CPP, legislação especial, teses STJ, direitos humanos) lives under `prompts/criminalista/arquivos/` as `.txt` extracts. Concatenating those files into every request would explode tokens and USD — they are **never** added to the 01–07 system prompt.
 
-For this cost demo:
-
 - System message = files `01`–`07` only.
-- **User attachments are the primary document path.**
-- If the latest user message cites an *artigo* / *lei* (or a clear legal topic), the server greps the corpus and injects **at most 3 short windows** (~1100 chars) with source filenames.
-- If there is no citation match, nothing from `arquivos/` is injected.
-
-A fuller vector RAG (embeddings / pgvector) can replace this grep later without changing the chat UX. Optional ingest remains:
+- The **full** corpus is the retrieval index (`data/rag/criminalista.chunks.jsonl`, 2958 chunks).
+- Each Criminalista turn embeds the query via OpenRouter (`openai/text-embedding-3-small`) when the vector file exists, ranks the whole index (cosine + BM25 + artigo boost), and injects **top 6 windows of ~1100 chars**.
+- User attachments remain the primary document path for case files.
+- Greetings without legal signal do not inject corpus text.
 
 ```bash
-pnpm ingest:rag          # rebuild data/rag chunk index from the .txt files
-pnpm ingest:rag:embed    # optional offline embeddings (not used on the chat hot path)
+pnpm ingest:rag          # rebuild the chunk index from the .txt files
+pnpm ingest:rag:embed    # OpenRouter embeddings for the full corpus (hybrid RAG)
 ```
 
 ## Cost
@@ -101,4 +99,5 @@ Criminalista system prompts are the Drive texts in `01`–`07`. The knowledge ba
 
 - Login, NextAuth, Clerk, Supabase Auth
 - Database / ORM / saved transcripts
-- Hosted vector DB (the file index is the stand-in)
+- Self-hosted LLMs (Ollama, vLLM, llama.cpp, local weights)
+- Hosted vector DB (the file index is the stand-in; swap for pgvector later)

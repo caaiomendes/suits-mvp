@@ -163,14 +163,14 @@ export function ChatSidebar({
                   {item.label}
                 </option>
               ))}
-              <option value="__custom__">Outro (ID OpenRouter)</option>
+              <option value="__custom__">Outro modelo comercial OpenRouter</option>
             </select>
             <input
               value={model}
               onChange={(event) => onModelChange(event.target.value)}
               spellCheck={false}
               className="mt-2 w-full rounded-xl border border-stone-300 bg-white px-3 py-2 font-mono text-xs text-stone-800"
-              placeholder="provedor/modelo"
+              placeholder="provedor/modelo (OpenRouter)"
             />
             {selectedModel ? (
               <span className="mt-1 block text-xs text-stone-500">
@@ -210,10 +210,9 @@ export function ChatSidebar({
           ) : null}
 
           <p className="text-xs leading-5 text-stone-500">
-            Sem login e sem banco. O histórico existe só nesta aba. O total
-            soma chat + embeddings da consulta. Ingestão do corpus é custo
-            offline. Em produção o índice local troca por pgvector/Supabase sem
-            mudar o chat.
+            Sem login e sem banco. Só OpenRouter (modelos comerciais). O
+            total soma chat + embeddings da consulta. O corpus Arquivos é
+            buscado no servidor; só trechos curtos entram no contexto.
           </p>
         </div>
       </aside>

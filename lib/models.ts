@@ -49,6 +49,8 @@ export const DEFAULT_MODELS: ModelOption[] = [
 
 export const DEFAULT_MODEL_ID = DEFAULT_MODELS[0].id;
 
+/** This MVP calls OpenRouter only. No Ollama, vLLM, or other self-hosted runtime. */
+
 export function getModelOption(modelId: string): ModelOption | undefined {
   return DEFAULT_MODELS.find((model) => model.id === modelId);
 }

@@ -75,6 +75,7 @@ export async function POST(request: Request) {
     return Response.json({ error: message }, { status: 400 });
   }
 
+  // Commercial OpenRouter only — no Ollama / vLLM / self-hosted runtime.
   const upstream = await fetch(OPENROUTER_CHAT_URL, {
     method: "POST",
     headers: {
