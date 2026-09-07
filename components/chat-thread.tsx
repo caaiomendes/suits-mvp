@@ -14,7 +14,13 @@ export type ThreadMessage = {
     promptTokens: number;
     completionTokens: number;
     costUsd: number;
+    chatCostUsd?: number;
+    embeddingTokens?: number;
+    embeddingCostUsd?: number;
+    embeddingCalls?: number;
     costSource: CostSource;
+    ragSources?: string[];
+    ragMode?: "hybrid" | "bm25" | "vector";
   };
   error?: string;
 };
@@ -37,8 +43,9 @@ export function ChatThread({
             Converse com o Criminalista
           </h2>
           <p className="mt-3 text-sm leading-6 text-stone-600">
-            Envie uma pergunta, anexe uma peça e acompanhe o custo da sessão no
-            painel. Nada é salvo: atualizar a página começa uma sessão nova.
+            Envie uma pergunta (por exemplo um artigo do CP/CPP), anexe uma
+            peça e acompanhe o custo no painel. O servidor busca trechos do
+            corpus Arquivos — a sessão some ao atualizar a página.
           </p>
         </div>
       </div>

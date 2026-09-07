@@ -5,6 +5,12 @@ import {
   usageFromChunk,
   type OpenRouterUsage,
 } from "@/lib/openrouter";
+import { buildRetrievalQuery } from "@/lib/rag/query-text";
+import {
+  formatRetrievedContext,
+  retrieveCriminalistaContext,
+} from "@/lib/rag/retrieve";
+import type { RetrievalResult } from "@/lib/rag/types";
 import type { ChatRequestBody, StreamEvent } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -49,6 +55,11 @@ export async function POST(request: Request) {
     const message =
       error instanceof Error ? error.message : "Falha ao carregar o agente.";
     return Response.json({ error: message }, { status: 400 });
+  }
+
+  const rag = await safeRetrieve(agentId, messages);
+  if (rag.context) {
+    systemPrompt = `${systemPrompt}\n\n${rag.context}`;
   }
 
   let openRouterMessages;
@@ -110,7 +121,7 @@ export async function POST(request: Request) {
           buffer = frames.pop() ?? "";
 
           for (const frame of frames) {
-            const handled = handleSseFrame(frame, model, emit);
+            const handled = handleSseFrame(frame, model, emit, rag);
             if (handled === "usage") {
               emittedUsage = true;
             }
@@ -118,22 +129,20 @@ export async function POST(request: Request) {
         }
 
         if (buffer.trim()) {
-          const handled = handleSseFrame(buffer, model, emit);
+          const handled = handleSseFrame(buffer, model, emit, rag);
           if (handled === "usage") {
             emittedUsage = true;
           }
         }
 
         if (!emittedUsage) {
-          emit({
-            type: "usage",
+          emit(usageEvent(model, rag, {
             promptTokens: 0,
             completionTokens: 0,
             totalTokens: 0,
             costUsd: 0,
             costSource: "unknown",
-            model,
-          });
+          }));
         }
 
         emit({ type: "done" });
@@ -160,6 +169,7 @@ function handleSseFrame(
   frame: string,
   model: string,
   emit: (event: StreamEvent) => void,
+  rag: RagTurn,
 ): "usage" | "other" {
   for (const line of frame.split("\n")) {
     const trimmed = line.trim();
@@ -200,16 +210,75 @@ function handleSseFrame(
 
     const usage = usageFromChunk(model, parsed.usage);
     if (usage) {
-      emit({
-        type: "usage",
-        ...usage,
-        model,
-      });
+      emit(usageEvent(model, rag, usage));
       return "usage";
     }
   }
 
   return "other";
+}
+
+type RagTurn = {
+  context: string;
+  result: RetrievalResult | null;
+};
+
+async function safeRetrieve(
+  agentId: string,
+  messages: ChatRequestBody["messages"],
+): Promise<RagTurn> {
+  if (agentId !== "criminalista") {
+    return { context: "", result: null };
+  }
+
+  try {
+    const query = buildRetrievalQuery(messages);
+    const result = await retrieveCriminalistaContext(query);
+    return { context: formatRetrievedContext(result.chunks), result };
+  } catch (error) {
+    console.error("RAG skipped:", error);
+    return { context: "", result: null };
+  }
+}
+
+function usageEvent(
+  model: string,
+  rag: RagTurn,
+  chat: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    costUsd: number;
+    costSource: "openrouter" | "estimate" | "unknown";
+  },
+): StreamEvent {
+  const embeddingTokens = rag.result?.embeddingUsage.tokens ?? 0;
+  const embeddingCostUsd = rag.result?.embeddingUsage.costUsd ?? 0;
+  const embeddingCalls = rag.result?.embeddingUsage.calls ?? 0;
+  const chatCostUsd = chat.costUsd;
+  const embeddingSource = rag.result?.embeddingUsage.costSource;
+  const costSource =
+    chat.costSource === "unknown" && embeddingCostUsd > 0
+      ? embeddingSource ?? "estimate"
+      : chat.costSource;
+
+  return {
+    type: "usage",
+    promptTokens: chat.promptTokens,
+    completionTokens: chat.completionTokens,
+    totalTokens: chat.totalTokens,
+    chatCostUsd,
+    embeddingTokens,
+    embeddingCostUsd,
+    embeddingCalls,
+    costUsd: chatCostUsd + embeddingCostUsd,
+    costSource,
+    model,
+    ragMode: rag.result?.mode,
+    ragSources: rag.result
+      ? [...new Set(rag.result.chunks.map((chunk) => chunk.source))]
+      : [],
+  };
 }
 
 async function safeReadError(response: Response): Promise<string> {

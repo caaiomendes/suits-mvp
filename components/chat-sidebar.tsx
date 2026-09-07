@@ -12,8 +12,14 @@ export function ChatSidebar({
   onModelChange,
   promptTokens,
   completionTokens,
+  embeddingTokens,
+  embeddingCalls,
+  chatCostUsd,
+  embeddingCostUsd,
   costUsd,
   costSource,
+  ragSources,
+  ragMode,
   turns,
   onReset,
 }: {
@@ -26,8 +32,14 @@ export function ChatSidebar({
   onModelChange: (id: string) => void;
   promptTokens: number;
   completionTokens: number;
+  embeddingTokens: number;
+  embeddingCalls: number;
+  chatCostUsd: number;
+  embeddingCostUsd: number;
   costUsd: number;
   costSource: CostSource | null;
+  ragSources: string[];
+  ragMode: "hybrid" | "bm25" | "vector" | null;
   turns: number;
   onReset: () => void;
 }) {
@@ -84,9 +96,26 @@ export function ChatSidebar({
             </dd>
           </div>
           <div className="col-span-2 rounded-xl bg-white p-3 ring-1 ring-stone-200">
-            <dt className="text-xs text-stone-500">Total de tokens</dt>
+            <dt className="text-xs text-stone-500">Chat USD</dt>
             <dd className="mt-1 font-medium text-stone-900">
-              {formatTokens(promptTokens + completionTokens)}
+              {formatUsd(chatCostUsd)}
+            </dd>
+          </div>
+          <div className="rounded-xl bg-white p-3 ring-1 ring-stone-200">
+            <dt className="text-xs text-stone-500">Embeddings</dt>
+            <dd className="mt-1 font-medium text-stone-900">
+              {formatUsd(embeddingCostUsd)}
+            </dd>
+          </div>
+          <div className="rounded-xl bg-white p-3 ring-1 ring-stone-200">
+            <dt className="text-xs text-stone-500">Embed tokens</dt>
+            <dd className="mt-1 font-medium text-stone-900">
+              {formatTokens(embeddingTokens)}
+              {embeddingCalls > 0 ? (
+                <span className="block text-[11px] font-normal text-stone-500">
+                  {embeddingCalls} chamada{embeddingCalls === 1 ? "" : "s"}
+                </span>
+              ) : null}
             </dd>
           </div>
         </dl>
@@ -165,10 +194,26 @@ export function ChatSidebar({
             Nova sessão
           </button>
 
+          {ragSources.length > 0 ? (
+            <div className="text-xs text-stone-600">
+              <p className="font-medium tracking-wide text-stone-500 uppercase">
+                Fontes RAG {ragMode ? `(${ragMode})` : ""}
+              </p>
+              <ul className="mt-1 list-disc space-y-1 pl-4">
+                {ragSources.map((source) => (
+                  <li key={source} className="break-all">
+                    {source}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
           <p className="text-xs leading-5 text-stone-500">
-            Sem login e sem banco. O histórico existe só nesta aba. Preferimos o
-            campo <code className="font-mono">usage.cost</code> do OpenRouter;
-            se não vier, usamos a tabela de preços dos modelos padrão.
+            Sem login e sem banco. O histórico existe só nesta aba. O total
+            soma chat + embeddings da consulta. Ingestão do corpus é custo
+            offline. Em produção o índice local troca por pgvector/Supabase sem
+            mudar o chat.
           </p>
         </div>
       </aside>

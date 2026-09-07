@@ -3,6 +3,7 @@ import path from "node:path";
 import type { AgentInfo } from "./types";
 
 const AGENT_ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/i;
+const SYSTEM_PROMPT_FILE = /^0[1-7]-.+\.md$/i;
 
 export function isAgentId(value: string): boolean {
   return AGENT_ID_PATTERN.test(value);
@@ -29,9 +30,8 @@ export async function listAgents(): Promise<AgentInfo[]> {
       continue;
     }
 
-    try {
-      await readFile(path.join(root, id, "system.md"), "utf8");
-    } catch {
+    const files = await listSystemPromptFiles(id);
+    if (files.length === 0) {
       continue;
     }
 
@@ -62,12 +62,36 @@ export async function loadAgentSystemPrompt(agentId: string): Promise<string> {
     throw new Error("Agente inválido.");
   }
 
-  const filePath = path.join(promptsRoot(), agentId, "system.md");
-
-  try {
-    return (await readFile(filePath, "utf8")).trim();
-  } catch {
+  const files = await listSystemPromptFiles(agentId);
+  if (files.length === 0) {
     throw new Error(`Prompt do agente "${agentId}" não encontrado.`);
+  }
+
+  const parts: string[] = [];
+  for (const file of files) {
+    const contents = await readFile(
+      path.join(promptsRoot(), agentId, file),
+      "utf8",
+    );
+    parts.push(contents.trim());
+  }
+
+  return parts.join("\n\n-----\n\n");
+}
+
+async function listSystemPromptFiles(agentId: string): Promise<string[]> {
+  try {
+    const files = await readdir(path.join(promptsRoot(), agentId));
+    const numbered = files.filter((file) => SYSTEM_PROMPT_FILE.test(file)).sort();
+    if (numbered.length > 0) {
+      return numbered;
+    }
+    if (files.includes("system.md")) {
+      return ["system.md"];
+    }
+    return [];
+  } catch {
+    return [];
   }
 }
 

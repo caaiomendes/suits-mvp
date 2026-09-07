@@ -1,0 +1,19 @@
+{
+  "agentId": "criminalista",
+  "embeddingModel": "openai/text-embedding-3-small",
+  "embeddingDimensions": 1536,
+  "chunkChars": 3600,
+  "chunkOverlap": 180,
+  "sources": [
+    "codigo-penal-atualizado-maio-2026.txt",
+    "codigo-penal-legislacao-360-2026-5-nqmvni.txt",
+    "codigo-processo-penal-atualizado-maio-2026.txt",
+    "cpp-legislacao-360-2026-2-4xxvyg.txt",
+    "direitos-humanos-e-legislacao-internacional-legislacao-360-2026-1-tbgvsc.txt",
+    "jurisprudencia-em-teses-do-stj-legislacao-360-2026-2-4ptnir-2.txt",
+    "legislacao-penal-especial-legislacao-360-2026-3-v3duqa.txt"
+  ],
+  "createdAt": "2026-09-07T20:18:27.873Z",
+  "embeddingsPresent": false,
+  "chunkCount": 2958
+}

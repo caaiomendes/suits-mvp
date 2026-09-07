@@ -1,0 +1,3 @@
+*.embeddings.bin
+*.embeddings.jsonl
+*.vectors.bin

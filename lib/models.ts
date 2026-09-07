@@ -1,5 +1,12 @@
 import type { ModelOption } from "./types";
 
+export const OPENROUTER_EMBEDDING_MODEL = "openai/text-embedding-3-small";
+
+/** USD per 1M embedding tokens. */
+export const EMBEDDING_PRICING: Record<string, number> = {
+  "openai/text-embedding-3-small": 0.02,
+};
+
 /** USD per 1M tokens. Update when OpenRouter list prices change. */
 export const MODEL_PRICING: Record<
   string,

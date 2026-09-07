@@ -40,8 +40,14 @@ export type UsageEvent = {
   completionTokens: number;
   totalTokens: number;
   costUsd: number;
+  chatCostUsd: number;
+  embeddingTokens: number;
+  embeddingCostUsd: number;
+  embeddingCalls: number;
   costSource: CostSource;
   model: string;
+  ragMode?: "hybrid" | "bm25" | "vector";
+  ragSources?: string[];
 };
 
 export type StreamEvent =

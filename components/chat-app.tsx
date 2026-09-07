@@ -18,7 +18,7 @@ const FALLBACK_AGENTS: AgentInfo[] = [
   {
     id: "criminalista",
     name: "Criminalista",
-    description: "Direito penal brasileiro — prompt placeholder para o MVP",
+    description: "Direito penal brasileiro com RAG sobre o corpus Arquivos",
   },
 ];
 
@@ -69,9 +69,15 @@ export function ChatApp() {
   const totals = useMemo(() => {
     let promptTokens = 0;
     let completionTokens = 0;
+    let embeddingTokens = 0;
+    let embeddingCalls = 0;
+    let chatCostUsd = 0;
+    let embeddingCostUsd = 0;
     let costUsd = 0;
     let costSource: CostSource | null = null;
     let turns = 0;
+    const ragSources = new Set<string>();
+    let ragMode: "hybrid" | "bm25" | "vector" | null = null;
 
     for (const message of messages) {
       if (!message.usage) {
@@ -80,11 +86,31 @@ export function ChatApp() {
       turns += 1;
       promptTokens += message.usage.promptTokens;
       completionTokens += message.usage.completionTokens;
+      embeddingTokens += message.usage.embeddingTokens ?? 0;
+      embeddingCalls += message.usage.embeddingCalls ?? 0;
+      chatCostUsd += message.usage.chatCostUsd ?? message.usage.costUsd;
+      embeddingCostUsd += message.usage.embeddingCostUsd ?? 0;
       costUsd += message.usage.costUsd;
       costSource = message.usage.costSource;
+      ragMode = message.usage.ragMode ?? ragMode;
+      for (const source of message.usage.ragSources ?? []) {
+        ragSources.add(source);
+      }
     }
 
-    return { promptTokens, completionTokens, costUsd, costSource, turns };
+    return {
+      promptTokens,
+      completionTokens,
+      embeddingTokens,
+      embeddingCalls,
+      chatCostUsd,
+      embeddingCostUsd,
+      costUsd,
+      costSource,
+      turns,
+      ragSources: [...ragSources],
+      ragMode,
+    };
   }, [messages]);
 
   function resetSession() {
@@ -230,7 +256,13 @@ export function ChatApp() {
                   promptTokens: event.promptTokens,
                   completionTokens: event.completionTokens,
                   costUsd: event.costUsd,
+                  chatCostUsd: event.chatCostUsd,
+                  embeddingTokens: event.embeddingTokens,
+                  embeddingCostUsd: event.embeddingCostUsd,
+                  embeddingCalls: event.embeddingCalls,
                   costSource: event.costSource,
+                  ragSources: event.ragSources,
+                  ragMode: event.ragMode,
                 },
               }
             : item,
@@ -324,8 +356,14 @@ export function ChatApp() {
         onModelChange={setModel}
         promptTokens={totals.promptTokens}
         completionTokens={totals.completionTokens}
+        embeddingTokens={totals.embeddingTokens}
+        embeddingCalls={totals.embeddingCalls}
+        chatCostUsd={totals.chatCostUsd}
+        embeddingCostUsd={totals.embeddingCostUsd}
         costUsd={totals.costUsd}
         costSource={totals.costSource}
+        ragSources={totals.ragSources}
+        ragMode={totals.ragMode}
         turns={totals.turns}
         onReset={resetSession}
       />

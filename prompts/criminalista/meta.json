@@ -1,4 +1,4 @@
 {
   "name": "Criminalista",
-  "description": "Direito penal brasileiro — prompt placeholder para o MVP"
+  "description": "Direito penal brasileiro com RAG sobre o corpus Arquivos"
 }
