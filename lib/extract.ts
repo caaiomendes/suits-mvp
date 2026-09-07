@@ -26,8 +26,7 @@ export async function extractBinaryAttachment(
 async function extractPdfText(bytes: Buffer): Promise<string> {
   const { extractText } = await import("unpdf");
   const result = await extractText(new Uint8Array(bytes), { mergePages: true });
-  const text = typeof result.text === "string" ? result.text : result.text.join("\n\n");
-  return text.replace(/\u0000/g, "").trim();
+  return result.text.replace(/\u0000/g, "").trim();
 }
 
 async function extractDocxText(bytes: Buffer): Promise<string> {
