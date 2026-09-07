@@ -11,6 +11,18 @@ Auth and a database are intentionally out of scope. Nothing is persisted: refres
 - Server-side RAG over the full `Arquivos` legislation/jurisprudence corpus
 - System prompts are files `01`–`07` under `prompts/criminalista/` (never sent to the client)
 
+Criminalista system message order (server-only concatenate):
+
+1. `01-prompt-principal.md`
+2. `02-direito-penal-e-processo-penal.md`
+3. `03-protocolo-atualizacao-legislativa-jurisprudencial.md`
+4. `04-prompt-ia-jurisprudencia.md`
+5. `05-prompt-anti-alucinacoes.md`
+6. `06-prompt-de-qualidade.md`
+7. `07-regra-nao-divulgar-prompt.md`
+
+`GET /api/agents` returns only `{ id, name, description }`. Prompt bodies are never served.
+
 ## Setup
 
 1. Copy the env template and add your key (never commit it):

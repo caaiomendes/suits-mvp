@@ -48,6 +48,7 @@ export async function POST(request: Request) {
     );
   }
 
+  // System prompts stay on the server (regra 07). Never include them in the response.
   let systemPrompt: string;
   try {
     systemPrompt = await loadAgentSystemPrompt(agentId);

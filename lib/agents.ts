@@ -3,7 +3,20 @@ import path from "node:path";
 import type { AgentInfo } from "./types";
 
 const AGENT_ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/i;
-const SYSTEM_PROMPT_FILE = /^0[1-7]-.+\.md$/i;
+
+/**
+ * Criminalista system prompts, server-side only (regra 07).
+ * Never return these strings from an API or import them in client components.
+ */
+export const CRIMINALISTA_SYSTEM_FILES = [
+  "01-prompt-principal.md",
+  "02-direito-penal-e-processo-penal.md",
+  "03-protocolo-atualizacao-legislativa-jurisprudencial.md",
+  "04-prompt-ia-jurisprudencia.md",
+  "05-prompt-anti-alucinacoes.md",
+  "06-prompt-de-qualidade.md",
+  "07-regra-nao-divulgar-prompt.md",
+] as const;
 
 export function isAgentId(value: string): boolean {
   return AGENT_ID_PATTERN.test(value);
@@ -48,7 +61,7 @@ export async function listAgents(): Promise<AgentInfo[]> {
         description = meta.description.trim();
       }
     } catch {
-      // meta.json is optional
+      // meta.json is optional — never fall back to prompt file contents
     }
 
     agents.push({ id, name, description });
@@ -80,9 +93,25 @@ export async function loadAgentSystemPrompt(agentId: string): Promise<string> {
 }
 
 async function listSystemPromptFiles(agentId: string): Promise<string[]> {
+  const dir = path.join(promptsRoot(), agentId);
+
+  if (agentId === "criminalista") {
+    const files = [...CRIMINALISTA_SYSTEM_FILES];
+    for (const file of files) {
+      try {
+        await readFile(path.join(dir, file));
+      } catch {
+        throw new Error(`Prompt obrigatório ausente: ${file}`);
+      }
+    }
+    return files;
+  }
+
   try {
-    const files = await readdir(path.join(promptsRoot(), agentId));
-    const numbered = files.filter((file) => SYSTEM_PROMPT_FILE.test(file)).sort();
+    const files = await readdir(dir);
+    const numbered = files
+      .filter((file) => /^0[1-9].+\.md$/i.test(file))
+      .sort();
     if (numbered.length > 0) {
       return numbered;
     }
