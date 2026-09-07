@@ -11,9 +11,9 @@ export const ACCEPTED_FILE_TYPES = [
   "image/gif",
 ].join(",");
 
-/** Hard cap for any attached file (PDF/DOCX are extracted to text before POST). */
-export const MAX_FILE_BYTES = 25 * 1024 * 1024;
-/** Images still go as dataUrl; keep them well under a 25 MB file. */
+/** Hard cap for PDF/TXT/DOCX (extracted to text before POST). */
+export const MAX_FILE_BYTES = 200 * 1024 * 1024;
+/** Images still go as dataUrl; keep them well under the Vercel body limit. */
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 /**
  * Only small binaries may be sent as base64. Larger PDFs/DOCX must be
@@ -142,7 +142,7 @@ async function extractDocumentAttachment(
 
     const detail = error instanceof Error ? error.message : "falha na extração";
     throw new Error(
-      `Não foi possível extrair o texto de ${name} (${detail}). Envie um arquivo com texto selecionável de até 25 MB.`,
+      `Não foi possível extrair o texto de ${name} (${detail}). Envie um arquivo com texto selecionável de até 200 MB.`,
     );
   }
 }
