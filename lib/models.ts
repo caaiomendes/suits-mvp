@@ -24,9 +24,9 @@ export const MODEL_PRICING: Record<
     inputUsdPerMillion: 0.075,
     outputUsdPerMillion: 0.25,
   },
-  "deepseek/deepseek-v4-flash": {
-    inputUsdPerMillion: 0.088606,
-    outputUsdPerMillion: 0.177212,
+  "deepseek/deepseek-v4-flash-0731": {
+    inputUsdPerMillion: 0.14,
+    outputUsdPerMillion: 0.28,
   },
 };
 
@@ -50,10 +50,10 @@ export const DEFAULT_MODELS: ModelOption[] = [
     ...MODEL_PRICING["z-ai/glm-5.3-flash"],
   },
   {
-    id: "deepseek/deepseek-v4-flash",
+    id: "deepseek/deepseek-v4-flash-0731",
     label: "DeepSeek V4 Flash",
     supportsVision: false,
-    ...MODEL_PRICING["deepseek/deepseek-v4-flash"],
+    ...MODEL_PRICING["deepseek/deepseek-v4-flash-0731"],
   },
 ];
 
