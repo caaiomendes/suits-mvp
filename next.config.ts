@@ -2,6 +2,14 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["unpdf", "mammoth"],
+  transpilePackages: ["pdfjs-dist"],
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      canvas: false,
+    };
+    return config;
+  },
   outputFileTracingIncludes: {
     "/api/chat": [
       "./prompts/criminalista/*.md",

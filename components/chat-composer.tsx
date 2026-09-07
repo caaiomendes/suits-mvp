@@ -85,7 +85,8 @@ export function ChatComposer({
           </button>
         </div>
         <p className="mt-2 text-[11px] text-stone-500">
-          PDF, TXT, DOCX e imagens. Enter envia · Shift+Enter quebra linha.
+          PDF, TXT, DOCX e imagens (até 25 MB). PDF e DOCX viram texto no
+          navegador. Enter envia · Shift+Enter quebra linha.
         </p>
       </div>
     </form>
