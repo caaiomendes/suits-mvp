@@ -151,7 +151,7 @@ async function extractPdfText(file: File): Promise<string> {
   const pdfjs = await import("pdfjs-dist");
 
   if (typeof window !== "undefined" && !pdfjs.GlobalWorkerOptions.workerSrc) {
-    pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+    pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
   }
 
   const data = new Uint8Array(await file.arrayBuffer());
