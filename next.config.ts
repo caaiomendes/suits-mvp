@@ -1,7 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  serverExternalPackages: ["unpdf", "mammoth"],
+  outputFileTracingIncludes: {
+    "/api/chat": ["./prompts/**/*"],
+    "/api/agents": ["./prompts/**/*"],
+  },
 };
 
 export default nextConfig;
