@@ -20,7 +20,7 @@ export type ThreadMessage = {
     embeddingCalls?: number;
     costSource: CostSource;
     ragSources?: string[];
-    ragMode?: "hybrid" | "bm25" | "vector";
+    ragMode?: "hybrid" | "bm25" | "vector" | "excerpt";
   };
   error?: string;
 };

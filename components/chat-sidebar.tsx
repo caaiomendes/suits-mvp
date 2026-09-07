@@ -39,7 +39,7 @@ export function ChatSidebar({
   costUsd: number;
   costSource: CostSource | null;
   ragSources: string[];
-  ragMode: "hybrid" | "bm25" | "vector" | null;
+  ragMode: "hybrid" | "bm25" | "vector" | "excerpt" | null;
   turns: number;
   onReset: () => void;
 }) {
@@ -197,7 +197,7 @@ export function ChatSidebar({
           {ragSources.length > 0 ? (
             <div className="text-xs text-stone-600">
               <p className="font-medium tracking-wide text-stone-500 uppercase">
-                Fontes RAG {ragMode ? `(${ragMode})` : ""}
+                Trechos do corpus {ragMode ? `(${ragMode})` : ""}
               </p>
               <ul className="mt-1 list-disc space-y-1 pl-4">
                 {ragSources.map((source) => (

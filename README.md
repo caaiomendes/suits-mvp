@@ -62,33 +62,26 @@ pnpm ingest:rag:embed    # same + OpenRouter embeddings (needs OPENROUTER_API_KE
 1. Confirm **Criminalista** in the agent selector (loads `01`–`07` on the server).
 2. Pick a default model or paste any OpenRouter model id.
 3. Ask about an article or attach a PDF/TXT/DOCX/image.
-4. The server retrieves top chunks from the corpus (never the whole file dump), streams the answer, and updates the sidebar:
-   - session USD (chat + query embeddings)
-   - prompt / completion / embedding tokens
-   - source filenames used in that turn
+4. The server streams the answer. If you named an artigo/lei, a few short corpus excerpts may appear as sources in the sidebar. Cost updates after each turn (chat USD; embeddings only if you later enable vector RAG).
 5. Refresh the tab to start a new session.
 
-## RAG
+## Corpus `arquivos/` (do not dump into the system prompt)
 
-Production-shaped file index, ready to swap for pgvector/Supabase later without changing the chat UX.
+The Drive folder **Arquivos** (CP, CPP, legislação especial, teses STJ, direitos humanos) lives under `prompts/criminalista/arquivos/` as `.txt` extracts. Concatenating those files into every request would explode tokens and USD — they are **never** added to the 01–07 system prompt.
 
-1. **Ingest** (`scripts/ingest-criminalista-rag.ts`) reads every `.txt` under `prompts/criminalista/arquivos/`, chunks with overlap (~3600 chars / ~180 overlap, article-aware), and writes `data/rag/criminalista.chunks.jsonl` + `criminalista.meta.json`.
-2. **Embeddings** use OpenRouter `POST /api/v1/embeddings` with `openai/text-embedding-3-small` (override via `OPENROUTER_EMBEDDING_MODEL`). Vectors are a gitignored binary (`data/rag/criminalista.embeddings.bin`) because the float32 matrix is large. Regenerate with `pnpm ingest:rag:embed`. `postinstall` generates them automatically when `OPENROUTER_API_KEY` is set and the file is missing (local or Vercel build). On Vercel the writable cache is `/tmp`.
-3. **Query** (every Criminalista turn, server-only): embed the latest user message plus a short attachment excerpt; cosine top-k over the index; BM25 over the **full** chunk store; boost hits for citations like `art. 121`, `CP`, `CPP`; merge with reciprocal rank fusion (k≈10). Inject a delimited `BASE LEGAL (trechos recuperados)` block with source filenames. The raw corpus and prompt files are not imported by client components.
-4. Without corpus embeddings (no key / not ingested yet) retrieval still runs **BM25 + citation boost over every chunk**, not a keyword stub. Hybrid (vector + BM25) turns on when the embeddings file is present.
+For this cost demo:
 
-### Regenerating the index
+- System message = files `01`–`07` only.
+- **User attachments are the primary document path.**
+- If the latest user message cites an *artigo* / *lei* (or a clear legal topic), the server greps the corpus and injects **at most 3 short windows** (~1100 chars) with source filenames.
+- If there is no citation match, nothing from `arquivos/` is injected.
+
+A fuller vector RAG (embeddings / pgvector) can replace this grep later without changing the chat UX. Optional ingest remains:
 
 ```bash
-pnpm ingest:rag          # always safe, no API key
-pnpm ingest:rag:embed    # requires OPENROUTER_API_KEY
+pnpm ingest:rag          # rebuild data/rag chunk index from the .txt files
+pnpm ingest:rag:embed    # optional offline embeddings (not used on the chat hot path)
 ```
-
-Commit the `.txt` corpus and the chunk JSONL. Do not commit `.embeddings.bin`.
-
-### Later: pgvector / Supabase
-
-Keep `retrieveCriminalistaContext()` as the seam. Replace the file loader in `lib/rag/store.ts` with a SQL/pgvector query; ingest writes rows instead of JSONL. The chat route and UI stay the same.
 
 ## Cost
 

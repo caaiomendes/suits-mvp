@@ -77,7 +77,7 @@ export function ChatApp() {
     let costSource: CostSource | null = null;
     let turns = 0;
     const ragSources = new Set<string>();
-    let ragMode: "hybrid" | "bm25" | "vector" | null = null;
+    let ragMode: "hybrid" | "bm25" | "vector" | "excerpt" | null = null;
 
     for (const message of messages) {
       if (!message.usage) {

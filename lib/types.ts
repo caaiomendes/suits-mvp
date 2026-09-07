@@ -46,7 +46,7 @@ export type UsageEvent = {
   embeddingCalls: number;
   costSource: CostSource;
   model: string;
-  ragMode?: "hybrid" | "bm25" | "vector";
+  ragMode?: "hybrid" | "bm25" | "vector" | "excerpt";
   ragSources?: string[];
 };
 

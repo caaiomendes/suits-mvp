@@ -34,6 +34,6 @@ export type RetrievedChunk = RagChunk & {
 
 export type RetrievalResult = {
   chunks: RetrievedChunk[];
-  mode: "hybrid" | "bm25" | "vector";
+  mode: "hybrid" | "bm25" | "vector" | "excerpt";
   embeddingUsage: EmbeddingUsage;
 };
