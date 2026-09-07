@@ -146,16 +146,8 @@ export function ChatSidebar({
               Modelo
             </span>
             <select
-              value={
-                DEFAULT_MODELS.some((item) => item.id === model)
-                  ? model
-                  : "__custom__"
-              }
-              onChange={(event) => {
-                if (event.target.value !== "__custom__") {
-                  onModelChange(event.target.value);
-                }
-              }}
+              value={selectedModel?.id ?? DEFAULT_MODELS[0].id}
+              onChange={(event) => onModelChange(event.target.value)}
               className="mt-1 w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
             >
               {DEFAULT_MODELS.map((item) => (
@@ -163,27 +155,14 @@ export function ChatSidebar({
                   {item.label}
                 </option>
               ))}
-              <option value="__custom__">Outro modelo comercial OpenRouter</option>
             </select>
-            <input
-              value={model}
-              onChange={(event) => onModelChange(event.target.value)}
-              spellCheck={false}
-              className="mt-2 w-full rounded-xl border border-stone-300 bg-white px-3 py-2 font-mono text-xs text-stone-800"
-              placeholder="provedor/modelo (OpenRouter)"
-            />
             {selectedModel ? (
               <span className="mt-1 block text-xs text-stone-500">
                 Tabela local: ${selectedModel.inputUsdPerMillion}/M in · $
                 {selectedModel.outputUsdPerMillion}/M out
                 {selectedModel.supportsVision ? " · visão" : ""}
               </span>
-            ) : (
-              <span className="mt-1 block text-xs text-stone-500">
-                Sem preço local. O custo virá do `usage` do OpenRouter, se
-                houver.
-              </span>
-            )}
+            ) : null}
           </label>
 
           <button
