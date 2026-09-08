@@ -62,7 +62,7 @@ pnpm ingest:rag:embed    # same + OpenRouter embeddings (needs OPENROUTER_API_KE
 
 1. Confirm **Criminalista** in the agent selector (loads `01`–`07` on the server).
 2. Pick a default model or paste any OpenRouter model id.
-3. Ask about an article or attach a PDF/TXT/DOCX/image.
+3. Ask about an article or attach a PDF/TXT/DOCX/image. PDF/DOCX are extracted in the browser (keeps `POST /api/chat` under Vercel’s body limit). The **full** extracted text is sent to the model — there is no character cap.
 4. The server retrieves from the **full** Arquivos index (OpenRouter embeddings + BM25), injects only a few short excerpts, streams the answer, and updates the USD sidebar.
 5. Refresh the tab to start a new session.
 
@@ -73,7 +73,7 @@ The Drive folder **Arquivos** (CP, CPP, legislação especial, teses STJ, direit
 - System message = files `01`–`07` only.
 - The **full** corpus is the retrieval index (`data/rag/criminalista.chunks.jsonl`, 2958 chunks).
 - Each Criminalista turn embeds the query via OpenRouter (`openai/text-embedding-3-small`) when the vector file exists, ranks the whole index (cosine + BM25 + artigo boost), and injects **top 6 windows of ~1100 chars**.
-- User attachments remain the primary document path for case files.
+- User attachments remain the primary document path for case files. Extracted PDF/DOCX/TXT text is inlined in full (no `MAX_EXTRACTED_CHARS` cut). A scanned PDF with no selectable text fails extraction instead of sending a truncated stub.
 - Greetings without legal signal do not inject corpus text.
 
 ```bash
@@ -86,6 +86,7 @@ pnpm ingest:rag:embed    # OpenRouter embeddings for the full corpus (hybrid RAG
 - Chat: OpenRouter stream `usage` (prefer `usage.cost`, else `lib/models.ts` table).
 - Query embeddings: OpenRouter embeddings `usage.cost` when present, else `$0.02 / 1M` for `text-embedding-3-small`.
 - Sidebar total = chat USD + embedding USD for the session. Corpus ingest embeddings are offline and not added to the live session.
+- **Full-document inclusion:** the entire extracted attachment text is sent on each chat turn. Large Brazilian process PDFs increase prompt tokens and USD. That is intentional for this cost demo. File **byte** caps still apply (200 MB documents, 10 MB images). Only the Arquivos RAG corpus stays excerpted.
 
 ## Adding another agent
 

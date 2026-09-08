@@ -1,5 +1,9 @@
 import type { AttachmentPayload } from "./types";
-import { truncateExtractedText } from "./extract-limits";
+import {
+  ExtractionEmptyError,
+  isNearlyEmptyExtract,
+  normalizeExtractedText,
+} from "./extracted-text";
 
 export const ACCEPTED_FILE_TYPES = [
   "application/pdf",
@@ -83,11 +87,16 @@ export async function fileToAttachment(file: File): Promise<AttachmentPayload> {
   }
 
   if (mimeType === "text/plain" || lower.endsWith(".txt")) {
+    const text = normalizeExtractedText(await file.text());
+    if (isNearlyEmptyExtract(text)) {
+      throw new ExtractionEmptyError(name);
+    }
+
     return {
       name,
       mimeType: "text/plain",
       kind: "text",
-      text: await file.text(),
+      text,
     };
   }
 
@@ -124,13 +133,21 @@ async function extractDocumentAttachment(
       ? await extractPdfText(file)
       : await extractDocxText(file);
 
+    if (isNearlyEmptyExtract(text)) {
+      throw new ExtractionEmptyError(name);
+    }
+
     return {
       name,
       mimeType,
       kind: "text",
-      text: truncateExtractedText(text || "(sem texto extraído)"),
+      text,
     };
   } catch (error) {
+    if (error instanceof ExtractionEmptyError) {
+      throw error;
+    }
+
     if (file.size <= MAX_BINARY_FALLBACK_BYTES) {
       return {
         name,
@@ -175,7 +192,7 @@ async function extractPdfText(file: File): Promise<string> {
     await pdf.destroy();
   }
 
-  return pages.join("\n\n").replace(/\u0000/g, "").trim();
+  return normalizeExtractedText(pages.join("\n\n"));
 }
 
 async function extractDocxText(file: File): Promise<string> {
@@ -183,7 +200,7 @@ async function extractDocxText(file: File): Promise<string> {
   const result = await mammoth.extractRawText({
     arrayBuffer: await file.arrayBuffer(),
   });
-  return result.value.trim();
+  return normalizeExtractedText(result.value);
 }
 
 function guessMime(name: string): string {

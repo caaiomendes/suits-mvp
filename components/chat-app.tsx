@@ -197,6 +197,8 @@ export function ChatApp() {
             : attachment.kind === "text"
               ? "text"
               : "file",
+        extractedChars:
+          attachment.kind === "text" ? attachment.text.length : undefined,
       })),
       payload: userPayload,
     };
