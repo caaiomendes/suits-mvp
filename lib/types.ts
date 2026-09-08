@@ -30,6 +30,8 @@ export type ChatRequestBody = {
   model: string;
   agentId: string;
   messages: ChatMessagePayload[];
+  /** Browser-tab OpenRouter session id (also sent as `x-session-id`). */
+  sessionId?: string;
 };
 
 export type CostSource = "openrouter" | "estimate" | "unknown";
@@ -39,6 +41,8 @@ export type UsageEvent = {
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;
+  cachedTokens: number;
+  cacheWriteTokens: number;
   costUsd: number;
   chatCostUsd: number;
   embeddingTokens: number;

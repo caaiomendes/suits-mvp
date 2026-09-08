@@ -12,6 +12,8 @@ export function ChatSidebar({
   onModelChange,
   promptTokens,
   completionTokens,
+  cachedTokens,
+  cacheWriteTokens,
   embeddingTokens,
   embeddingCalls,
   chatCostUsd,
@@ -32,6 +34,8 @@ export function ChatSidebar({
   onModelChange: (id: string) => void;
   promptTokens: number;
   completionTokens: number;
+  cachedTokens: number;
+  cacheWriteTokens: number;
   embeddingTokens: number;
   embeddingCalls: number;
   chatCostUsd: number;
@@ -95,6 +99,13 @@ export function ChatSidebar({
               <dt className="text-xs text-stone-500">Completion</dt>
               <dd className="mt-1 font-medium text-stone-900">
                 {formatTokens(completionTokens)}
+              </dd>
+            </div>
+            <div className="col-span-2 rounded-xl bg-white p-3 ring-1 ring-stone-200">
+              <dt className="text-xs text-stone-500">Cache</dt>
+              <dd className="mt-1 font-medium text-stone-900">
+                {formatTokens(cachedTokens)} tok lidos /{" "}
+                {formatTokens(cacheWriteTokens)} tok escritos
               </dd>
             </div>
             <div className="col-span-2 rounded-xl bg-white p-3 ring-1 ring-stone-200">
@@ -191,7 +202,8 @@ export function ChatSidebar({
 
           <p className="text-xs leading-5 text-stone-500">
             Sem login e sem banco. Só OpenRouter (modelos comerciais). O
-            total soma chat + embeddings da consulta. O corpus Arquivos é
+            total soma chat + embeddings da consulta. Cache mostra tokens
+            lidos/escritos do prefixo (PDF + system). O corpus Arquivos é
             buscado no servidor; só trechos curtos entram no contexto.
           </p>
         </div>

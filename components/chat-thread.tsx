@@ -17,6 +17,8 @@ export type ThreadMessage = {
   usage?: {
     promptTokens: number;
     completionTokens: number;
+    cachedTokens?: number;
+    cacheWriteTokens?: number;
     costUsd: number;
     chatCostUsd?: number;
     embeddingTokens?: number;

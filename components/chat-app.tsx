@@ -10,6 +10,7 @@ import {
 import type { ComposerAttachment } from "@/lib/composer-attachments";
 import { attachmentsReady, isExtractingStatus } from "@/lib/composer-attachments";
 import { extractAttachment, isExtractAborted } from "@/lib/extract-client";
+import { getBrowserSessionId } from "@/lib/browser-session";
 import { DEFAULT_MODEL_ID, isAllowedChatModel } from "@/lib/models";
 import { readChatSse } from "@/lib/sse";
 import type {
@@ -100,6 +101,8 @@ export function ChatApp() {
   const totals = useMemo(() => {
     let promptTokens = 0;
     let completionTokens = 0;
+    let cachedTokens = 0;
+    let cacheWriteTokens = 0;
     let embeddingTokens = 0;
     let embeddingCalls = 0;
     let chatCostUsd = 0;
@@ -117,6 +120,8 @@ export function ChatApp() {
       turns += 1;
       promptTokens += message.usage.promptTokens;
       completionTokens += message.usage.completionTokens;
+      cachedTokens += message.usage.cachedTokens ?? 0;
+      cacheWriteTokens += message.usage.cacheWriteTokens ?? 0;
       embeddingTokens += message.usage.embeddingTokens ?? 0;
       embeddingCalls += message.usage.embeddingCalls ?? 0;
       chatCostUsd += message.usage.chatCostUsd ?? message.usage.costUsd;
@@ -132,6 +137,8 @@ export function ChatApp() {
     return {
       promptTokens,
       completionTokens,
+      cachedTokens,
+      cacheWriteTokens,
       embeddingTokens,
       embeddingCalls,
       chatCostUsd,
@@ -331,12 +338,17 @@ export function ChatApp() {
     });
 
     try {
+      const sessionId = getBrowserSessionId();
       const response = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-session-id": sessionId,
+        },
         body: JSON.stringify({
           model,
           agentId,
+          sessionId,
           messages: requestMessages,
         }),
       });
@@ -389,6 +401,8 @@ export function ChatApp() {
                 usage: {
                   promptTokens: event.promptTokens,
                   completionTokens: event.completionTokens,
+                  cachedTokens: event.cachedTokens ?? 0,
+                  cacheWriteTokens: event.cacheWriteTokens ?? 0,
                   costUsd: event.costUsd,
                   chatCostUsd: event.chatCostUsd,
                   embeddingTokens: event.embeddingTokens,
@@ -504,6 +518,8 @@ export function ChatApp() {
         }}
         promptTokens={totals.promptTokens}
         completionTokens={totals.completionTokens}
+        cachedTokens={totals.cachedTokens}
+        cacheWriteTokens={totals.cacheWriteTokens}
         embeddingTokens={totals.embeddingTokens}
         embeddingCalls={totals.embeddingCalls}
         chatCostUsd={totals.chatCostUsd}
