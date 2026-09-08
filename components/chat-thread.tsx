@@ -1,3 +1,4 @@
+import { formatFileSize } from "@/lib/extract-progress";
 import type { CostSource } from "@/lib/types";
 import { MarkdownMessage } from "./markdown-message";
 
@@ -5,6 +6,7 @@ export type ThreadAttachment = {
   name: string;
   kind: "text" | "image" | "file";
   extractedChars?: number;
+  fileBytes?: number;
 };
 
 export type ThreadMessage = {
@@ -152,14 +154,18 @@ export function ChatThread({
 
 function attachmentChipLabel(attachment: ThreadAttachment): string {
   const prefix = attachmentLabel(attachment.kind);
+  const size =
+    typeof attachment.fileBytes === "number"
+      ? ` · ${formatFileSize(attachment.fileBytes)}`
+      : "";
   if (
     attachment.kind === "text" &&
     typeof attachment.extractedChars === "number"
   ) {
     const count = attachment.extractedChars.toLocaleString("pt-BR");
-    return `${prefix} ${attachment.name} · ${count} caracteres (integral)`;
+    return `${prefix} ${attachment.name}${size} · ${count} caracteres (integral)`;
   }
-  return `${prefix} ${attachment.name}`;
+  return `${prefix} ${attachment.name}${size}`;
 }
 
 function attachmentLabel(kind: ThreadAttachment["kind"]): string {

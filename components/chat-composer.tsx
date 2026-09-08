@@ -2,25 +2,48 @@
 
 import { useEffect, useRef } from "react";
 import { ACCEPTED_FILE_TYPES } from "@/lib/attachments";
+import type { ComposerAttachment } from "@/lib/composer-attachments";
+import { isExtractingStatus } from "@/lib/composer-attachments";
+import {
+  formatCharCount,
+  formatExtractChipStatus,
+  formatExtractHeadline,
+  formatFileSize,
+} from "@/lib/extract-progress";
 
 export function ChatComposer({
   value,
-  files,
+  attachments,
   disabled,
+  sendBlocked,
   onChange,
   onFiles,
-  onRemoveFile,
+  onRemoveAttachment,
   onSubmit,
 }: {
   value: string;
-  files: File[];
+  attachments: ComposerAttachment[];
   disabled: boolean;
+  sendBlocked: boolean;
   onChange: (value: string) => void;
   onFiles: (files: FileList | null) => void;
-  onRemoveFile: (name: string) => void;
+  onRemoveAttachment: (id: string) => void;
   onSubmit: () => void;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const extracting = attachments.find((item) => isExtractingStatus(item.status));
+  const headline = extracting
+    ? formatExtractHeadline(
+        {
+          phase: extracting.status,
+          page: extracting.page,
+          pages: extracting.pages,
+          chars: extracting.extractedChars,
+          error: extracting.error,
+        },
+        extracting.file.name,
+      )
+    : null;
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -40,25 +63,50 @@ export function ChatComposer({
       }}
     >
       <div className="mx-auto max-w-3xl">
-        {files.length > 0 ? (
+        {attachments.length > 0 ? (
           <ul className="mb-2 flex flex-wrap gap-2">
-            {files.map((file) => (
+            {attachments.map((item) => (
               <li
-                key={`${file.name}-${file.size}`}
-                className="flex items-center gap-2 rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 text-xs text-stone-700"
+                key={item.id}
+                className={chipClassName(item.status)}
               >
-                <span className="max-w-48 truncate">{file.name}</span>
+                <span className="min-w-0">
+                  <span className="block max-w-56 truncate font-medium text-stone-800">
+                    {item.file.name}
+                  </span>
+                  <span className="block max-w-64 text-[10px] leading-4 text-stone-500">
+                    {formatFileSize(item.file.size)}
+                    {" · "}
+                    {item.status === "ready" && item.payload?.kind === "text"
+                      ? `${formatCharCount(item.payload.text.length)} caracteres`
+                      : formatExtractChipStatus({
+                          phase: item.status,
+                          page: item.page,
+                          pages: item.pages,
+                          chars: item.extractedChars,
+                          error: item.error,
+                        })}
+                  </span>
+                </span>
                 <button
                   type="button"
                   className="rounded-full px-1 text-stone-400 hover:text-stone-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-800/20"
-                  onClick={() => onRemoveFile(file.name)}
-                  aria-label={`Remover ${file.name}`}
+                  onClick={() => onRemoveAttachment(item.id)}
+                  aria-label={`Remover ${item.file.name}`}
                 >
                   ×
                 </button>
               </li>
             ))}
           </ul>
+        ) : null}
+        {headline ? (
+          <p
+            className="mb-2 text-xs text-amber-900"
+            aria-live="polite"
+          >
+            {headline}
+          </p>
         ) : null}
         <div className="flex items-end gap-2 rounded-2xl border border-stone-300 bg-white p-2 shadow-sm focus-within:border-stone-700 focus-within:ring-2 focus-within:ring-stone-800/10">
           <label className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl text-stone-500 hover:bg-stone-100 hover:text-stone-800 focus-within:ring-2 focus-within:ring-stone-800/20">
@@ -93,21 +141,33 @@ export function ChatComposer({
           />
           <button
             type="submit"
-            disabled={disabled || (!value.trim() && files.length === 0)}
+            disabled={disabled || sendBlocked}
             className="h-10 rounded-xl bg-stone-900 px-4 text-sm font-medium text-white hover:bg-stone-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-800/30 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-stone-300"
           >
-            Enviar
+            {extracting ? "Preparando…" : "Enviar"}
           </button>
         </div>
         <p className="mt-2 text-[11px] text-stone-500">
-          PDF, TXT, DOCX (até 200 MB) e imagens (até 10 MB). O texto integral
-          extraído vai ao modelo — peças longas aumentam o custo. PDF
-          escaneado sem texto selecionável falha a extração. Enter envia ·
-          Shift+Enter quebra linha.
+          PDF, TXT, DOCX (até 200 MB) e imagens (até 10 MB). A extração começa
+          ao anexar; o texto integral vai ao modelo — peças longas aumentam o
+          custo. PDF escaneado sem texto selecionável falha a extração. Enter
+          envia · Shift+Enter quebra linha.
         </p>
       </div>
     </form>
   );
+}
+
+function chipClassName(status: ComposerAttachment["status"]): string {
+  const base =
+    "flex items-center gap-2 rounded-2xl border px-2.5 py-1 text-xs";
+  if (status === "error") {
+    return `${base} border-red-200 bg-red-50 text-red-800`;
+  }
+  if (status === "preparing" || status === "extracting") {
+    return `${base} border-amber-200 bg-amber-50 text-stone-700`;
+  }
+  return `${base} border-stone-200 bg-stone-50 text-stone-700`;
 }
 
 function PaperclipIcon() {

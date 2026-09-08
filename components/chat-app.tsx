@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  filesToAttachments,
   fileSizeLimitMessage,
   isAcceptedFile,
   MAX_FILE_BYTES,
   MAX_IMAGE_BYTES,
 } from "@/lib/attachments";
+import type { ComposerAttachment } from "@/lib/composer-attachments";
+import { attachmentsReady, isExtractingStatus } from "@/lib/composer-attachments";
+import { extractAttachment, isExtractAborted } from "@/lib/extract-client";
 import { DEFAULT_MODEL_ID, isAllowedChatModel } from "@/lib/models";
 import { readChatSse } from "@/lib/sse";
 import type {
@@ -37,12 +39,15 @@ export function ChatApp() {
   const [agentId, setAgentId] = useState("criminalista");
   const [model, setModel] = useState(DEFAULT_MODEL_ID);
   const [draft, setDraft] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
+  const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
   const [messages, setMessages] = useState<StoredMessage[]>([]);
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
+  const extractAborts = useRef(new Map<string, () => void>());
+  const attachmentsRef = useRef<ComposerAttachment[]>([]);
+  attachmentsRef.current = attachments;
 
   useEffect(() => {
     let cancelled = false;
@@ -73,6 +78,16 @@ export function ChatApp() {
       setModel(DEFAULT_MODEL_ID);
     }
   }, [model]);
+
+  useEffect(() => {
+    const aborts = extractAborts.current;
+    return () => {
+      for (const abort of aborts.values()) {
+        abort();
+      }
+      aborts.clear();
+    };
+  }, []);
 
   useEffect(() => {
     const pane = threadRef.current;
@@ -129,12 +144,35 @@ export function ChatApp() {
     };
   }, [messages]);
 
+  function abortAllExtracts() {
+    for (const abort of extractAborts.current.values()) {
+      abort();
+    }
+    extractAborts.current.clear();
+  }
+
   function resetSession() {
+    abortAllExtracts();
     setMessages([]);
     setDraft("");
-    setFiles([]);
+    setAttachments([]);
     setError(null);
     setStreaming(false);
+  }
+
+  function updateAttachment(
+    id: string,
+    patch: Partial<ComposerAttachment>,
+  ) {
+    setAttachments((current) =>
+      current.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    );
+  }
+
+  function removeAttachment(id: string) {
+    extractAborts.current.get(id)?.();
+    extractAborts.current.delete(id);
+    setAttachments((current) => current.filter((item) => item.id !== id));
   }
 
   function addFiles(list: FileList | null) {
@@ -142,63 +180,133 @@ export function ChatApp() {
       return;
     }
 
-    const next = Array.from(list).filter((file) => {
+    const accepted: File[] = [];
+    for (const file of Array.from(list)) {
       if (!isAcceptedFile(file)) {
         setError(`Tipo não suportado: ${file.name}`);
-        return false;
+        continue;
       }
       if (file.size > MAX_FILE_BYTES) {
         setError(fileSizeLimitMessage(file.name, MAX_FILE_BYTES));
-        return false;
+        continue;
       }
       if (file.type.startsWith("image/") && file.size > MAX_IMAGE_BYTES) {
         setError(fileSizeLimitMessage(file.name, MAX_IMAGE_BYTES));
-        return false;
+        continue;
       }
-      return true;
-    });
+      accepted.push(file);
+    }
 
-    setFiles((current) => [...current, ...next].slice(0, 6));
+    if (accepted.length === 0) {
+      return;
+    }
+
+    setError(null);
+    const room = Math.max(0, 6 - attachmentsRef.current.length);
+    const created: ComposerAttachment[] = accepted.slice(0, room).map((file) => ({
+      id: crypto.randomUUID(),
+      file,
+      status: "preparing",
+      extractedChars: 0,
+    }));
+    if (created.length === 0) {
+      return;
+    }
+    setAttachments((current) => [...current, ...created]);
+    for (const item of created) {
+      startExtract(item.id, item.file);
+    }
+  }
+
+  function startExtract(id: string, file: File) {
+    const { promise, abort } = extractAttachment(file, (progress) => {
+      updateAttachment(id, {
+        status: progress.phase,
+        page: progress.page,
+        pages: progress.pages,
+        extractedChars: progress.chars,
+        error: progress.error,
+      });
+    });
+    extractAborts.current.set(id, abort);
+    void promise
+      .then((payload) => {
+        extractAborts.current.delete(id);
+        updateAttachment(id, {
+          status: "ready",
+          payload,
+          extractedChars:
+            payload.kind === "text" ? payload.text.length : undefined,
+          error: undefined,
+        });
+      })
+      .catch((err: unknown) => {
+        extractAborts.current.delete(id);
+        if (isExtractAborted(err)) {
+          return;
+        }
+        const message =
+          err instanceof Error ? err.message : "Falha ao ler anexos.";
+        updateAttachment(id, {
+          status: "error",
+          error: message,
+        });
+        setError(message);
+      });
   }
 
   async function sendMessage() {
     const content = draft.trim();
-    if (streaming || (!content && files.length === 0)) {
+    if (streaming || (!content && attachments.length === 0)) {
       return;
+    }
+    if (attachments.some((item) => isExtractingStatus(item.status))) {
+      return;
+    }
+    if (attachments.some((item) => item.status === "error")) {
+      setError(
+        attachments.find((item) => item.error)?.error ??
+          "Remova o anexo com falha antes de enviar.",
+      );
+      return;
+    }
+    if (attachments.length > 0 && !attachmentsReady(attachments)) {
+      return;
+    }
+
+    const payloads = [];
+    for (const item of attachments) {
+      if (!item.payload) {
+        setError("A extração ainda não terminou.");
+        return;
+      }
+      payloads.push(item.payload);
     }
 
     setError(null);
     setStreaming(true);
 
-    let attachments;
-    try {
-      attachments = await filesToAttachments(files);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Falha ao ler anexos.");
-      setStreaming(false);
-      return;
-    }
-
     const userPayload: ChatMessagePayload = {
       role: "user",
       content,
-      attachments,
+      attachments: payloads,
     };
 
     const userMessage: StoredMessage = {
       id: crypto.randomUUID(),
       role: "user",
       content,
-      attachments: attachments.map((attachment) => ({
-        name: attachment.name,
+      attachments: attachments.map((item) => ({
+        name: item.file.name,
         kind:
-          attachment.kind === "image"
+          item.payload?.kind === "image"
             ? "image"
-            : attachment.kind === "text"
+            : item.payload?.kind === "text"
               ? "text"
               : "file",
         extractedChars:
-          attachment.kind === "text" ? attachment.text.length : undefined,
+          item.payload?.kind === "text" ? item.payload.text.length : undefined,
+        fileBytes: item.file.size,
       })),
       payload: userPayload,
     };
@@ -213,7 +321,7 @@ export function ChatApp() {
     const history = [...messages, userMessage];
     setMessages([...history, assistantMessage]);
     setDraft("");
-    setFiles([]);
+    setAttachments([]);
 
     const requestMessages: ChatMessagePayload[] = history.map((message) => {
       if (message.payload) {
@@ -366,13 +474,15 @@ export function ChatApp() {
         <div className="shrink-0">
           <ChatComposer
             value={draft}
-            files={files}
+            attachments={attachments}
             disabled={streaming}
+            sendBlocked={
+              (!draft.trim() && attachments.length === 0) ||
+              attachments.some((item) => item.status !== "ready")
+            }
             onChange={setDraft}
             onFiles={addFiles}
-            onRemoveFile={(name) =>
-              setFiles((current) => current.filter((file) => file.name !== name))
-            }
+            onRemoveAttachment={removeAttachment}
             onSubmit={() => {
               void sendMessage();
             }}

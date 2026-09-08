@@ -62,7 +62,7 @@ pnpm ingest:rag:embed    # same + OpenRouter embeddings (needs OPENROUTER_API_KE
 
 1. Confirm **Criminalista** in the agent selector (loads `01`–`07` on the server).
 2. Pick a default model or paste any OpenRouter model id.
-3. Ask about an article or attach a PDF/TXT/DOCX/image. PDF/DOCX are extracted in the browser (keeps `POST /api/chat` under Vercel’s body limit). The **full** extracted text is sent to the model — there is no character cap.
+3. Ask about an article or attach a PDF/TXT/DOCX/image. PDF/DOCX extraction starts as soon as you pick the file, off the main thread, with page/character progress. Send stays disabled until the extract is ready. The **full** extracted text is sent to the model — there is no character cap.
 4. The server retrieves from the **full** Arquivos index (OpenRouter embeddings + BM25), injects only a few short excerpts, streams the answer, and updates the USD sidebar.
 5. Refresh the tab to start a new session.
 
