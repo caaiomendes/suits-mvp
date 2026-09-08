@@ -4,6 +4,7 @@ import { MarkdownMessage } from "./markdown-message";
 export type ThreadAttachment = {
   name: string;
   kind: "text" | "image" | "file";
+  extractedChars?: number;
 };
 
 export type ThreadMessage = {
@@ -118,7 +119,7 @@ export function ChatThread({
                         : "rounded-full bg-stone-100 px-2 py-0.5 text-[11px] text-stone-600"
                     }
                   >
-                    {attachmentLabel(attachment.kind)} {attachment.name}
+                    {attachmentChipLabel(attachment)}
                   </li>
                 ))}
               </ul>
@@ -147,6 +148,18 @@ export function ChatThread({
       })}
     </div>
   );
+}
+
+function attachmentChipLabel(attachment: ThreadAttachment): string {
+  const prefix = attachmentLabel(attachment.kind);
+  if (
+    attachment.kind === "text" &&
+    typeof attachment.extractedChars === "number"
+  ) {
+    const count = attachment.extractedChars.toLocaleString("pt-BR");
+    return `${prefix} ${attachment.name} · ${count} caracteres (integral)`;
+  }
+  return `${prefix} ${attachment.name}`;
 }
 
 function attachmentLabel(kind: ThreadAttachment["kind"]): string {

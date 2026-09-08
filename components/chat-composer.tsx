@@ -100,8 +100,10 @@ export function ChatComposer({
           </button>
         </div>
         <p className="mt-2 text-[11px] text-stone-500">
-          PDF, TXT, DOCX (até 200 MB) e imagens (até 10 MB). PDF e DOCX
-          viram texto no navegador. Enter envia · Shift+Enter quebra linha.
+          PDF, TXT, DOCX (até 200 MB) e imagens (até 10 MB). O texto integral
+          extraído vai ao modelo — peças longas aumentam o custo. PDF
+          escaneado sem texto selecionável falha a extração. Enter envia ·
+          Shift+Enter quebra linha.
         </p>
       </div>
     </form>

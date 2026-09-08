@@ -1,6 +1,16 @@
 import { resolveTurnCost } from "./cost";
 import { extractBinaryAttachment } from "./extract";
+import {
+  EXTRACTION_FAILED_MODEL_NOTE,
+  isNearlyEmptyExtract,
+} from "./extracted-text";
 import type { AttachmentPayload, ChatMessagePayload, CostSource } from "./types";
+
+const FULL_DOCUMENT_TURN_REMINDER =
+  "O usuário anexou o(s) arquivo(s) completo(s). O texto extraído nesta mensagem é integral — " +
+  "não há corte por limite de caracteres. Não trate o anexo como incompleto, ilegível ou não enviado. " +
+  "Analise o conteúdo fornecido. Só declare falha de leitura se o bloco do anexo indicar extração vazia " +
+  "(PDF escaneado sem OCR).";
 
 export const OPENROUTER_CHAT_URL =
   "https://openrouter.ai/api/v1/chat/completions";
@@ -29,27 +39,49 @@ export async function buildOpenRouterMessages(input: {
     { role: "system", content: input.systemPrompt },
   ];
 
+  let latestUserHasFullExtract = false;
+
   for (const message of input.messages) {
     if (message.role === "assistant") {
       result.push({ role: "assistant", content: message.content });
       continue;
     }
 
+    const { content, hasFullExtract } = await buildUserContent(message);
+    latestUserHasFullExtract = hasFullExtract;
     result.push({
       role: "user",
-      content: await buildUserContent(message),
+      content,
     });
+  }
+
+  if (latestUserHasFullExtract) {
+    let lastUserIndex = -1;
+    for (let index = result.length - 1; index >= 0; index -= 1) {
+      if (result[index]?.role === "user") {
+        lastUserIndex = index;
+        break;
+      }
+    }
+    if (lastUserIndex >= 0) {
+      result.splice(lastUserIndex, 0, {
+        role: "system",
+        content: FULL_DOCUMENT_TURN_REMINDER,
+      });
+    }
   }
 
   return result;
 }
 
-async function buildUserContent(
-  message: ChatMessagePayload,
-): Promise<string | OpenRouterContentPart[]> {
+async function buildUserContent(message: ChatMessagePayload): Promise<{
+  content: string | OpenRouterContentPart[];
+  hasFullExtract: boolean;
+}> {
   const attachments = message.attachments ?? [];
   const textParts: string[] = [];
   const imageParts: OpenRouterContentPart[] = [];
+  let hasFullExtract = false;
 
   if (message.content.trim()) {
     textParts.push(message.content.trim());
@@ -66,18 +98,26 @@ async function buildUserContent(
       continue;
     }
 
+    if (isNearlyEmptyExtract(extracted.text)) {
+      textParts.push(
+        `--- Anexo: ${attachment.name} ---\n${EXTRACTION_FAILED_MODEL_NOTE}`,
+      );
+      continue;
+    }
+
+    hasFullExtract = true;
     textParts.push(
-      `--- Anexo: ${attachment.name} ---\n${extracted.text || "(sem texto extraído)"}`,
+      `--- Anexo: ${attachment.name} (texto integral extraído) ---\n${extracted.text}`,
     );
   }
 
   const text = textParts.join("\n\n");
+  const content =
+    imageParts.length === 0
+      ? text || "(mensagem vazia)"
+      : [{ type: "text" as const, text: text || "Analise os anexos." }, ...imageParts];
 
-  if (imageParts.length === 0) {
-    return text || "(mensagem vazia)";
-  }
-
-  return [{ type: "text", text: text || "Analise os anexos." }, ...imageParts];
+  return { content, hasFullExtract };
 }
 
 async function attachmentToTextOrImage(
