@@ -3,6 +3,7 @@ import { isAllowedChatModel } from "@/lib/models";
 import {
   OPENROUTER_CHAT_URL,
   buildOpenRouterMessages,
+  resolveOpenRouterSessionId,
   usageFromChunk,
   type OpenRouterUsage,
 } from "@/lib/openrouter";
@@ -69,16 +70,19 @@ export async function POST(request: Request) {
     return Response.json({ error: message }, { status: 400 });
   }
 
+  const sessionId = resolveOpenRouterSessionId(
+    body.sessionId,
+    request.headers.get("x-session-id"),
+  );
+
   const rag = await safeRetrieve(agentId, messages);
-  if (rag.context) {
-    systemPrompt = `${systemPrompt}\n\n${rag.context}`;
-  }
 
   let openRouterMessages;
   try {
     openRouterMessages = await buildOpenRouterMessages({
       systemPrompt,
       messages,
+      retrievedContext: rag.context,
     });
   } catch (error) {
     const message =
@@ -95,11 +99,14 @@ export async function POST(request: Request) {
       "HTTP-Referer":
         process.env.OPENROUTER_HTTP_REFERER ?? "http://localhost:3000",
       "X-Title": "Suits MVP",
+      "x-session-id": sessionId,
     },
     body: JSON.stringify({
       model,
       messages: openRouterMessages,
       stream: true,
+      session_id: sessionId,
+      prompt_cache_key: sessionId,
     }),
   });
 
@@ -153,6 +160,8 @@ export async function POST(request: Request) {
             promptTokens: 0,
             completionTokens: 0,
             totalTokens: 0,
+            cachedTokens: 0,
+            cacheWriteTokens: 0,
             costUsd: 0,
             costSource: "unknown",
           }));
@@ -261,6 +270,8 @@ function usageEvent(
     promptTokens: number;
     completionTokens: number;
     totalTokens: number;
+    cachedTokens: number;
+    cacheWriteTokens: number;
     costUsd: number;
     costSource: "openrouter" | "estimate" | "unknown";
   },
@@ -280,6 +291,8 @@ function usageEvent(
     promptTokens: chat.promptTokens,
     completionTokens: chat.completionTokens,
     totalTokens: chat.totalTokens,
+    cachedTokens: chat.cachedTokens,
+    cacheWriteTokens: chat.cacheWriteTokens,
     chatCostUsd,
     embeddingTokens,
     embeddingCostUsd,

@@ -12,6 +12,8 @@ const FULL_DOCUMENT_TURN_REMINDER =
   "Analise o conteúdo fornecido. Só declare falha de leitura se o bloco do anexo indicar extração vazia " +
   "(PDF escaneado sem OCR).";
 
+const ANALYZE_ATTACHMENTS_FALLBACK = "Analise o(s) anexo(s).";
+
 export const OPENROUTER_CHAT_URL =
   "https://openrouter.ai/api/v1/chat/completions";
 
@@ -24,100 +26,176 @@ export type OpenRouterMessage = {
   content: string | OpenRouterContentPart[];
 };
 
+export type OpenRouterPromptTokenDetails = {
+  cached_tokens?: number;
+  cache_write_tokens?: number;
+};
+
 export type OpenRouterUsage = {
   prompt_tokens?: number;
   completion_tokens?: number;
   total_tokens?: number;
   cost?: number;
+  cached_tokens?: number;
+  cache_write_tokens?: number;
+  native_tokens_cached?: number;
+  prompt_tokens_details?: OpenRouterPromptTokenDetails;
 };
 
 export async function buildOpenRouterMessages(input: {
   systemPrompt: string;
   messages: ChatMessagePayload[];
+  retrievedContext?: string;
 }): Promise<OpenRouterMessage[]> {
   const result: OpenRouterMessage[] = [
     { role: "system", content: input.systemPrompt },
   ];
 
-  let latestUserHasFullExtract = false;
+  const documentBlocks = await collectDocumentBlocks(input.messages);
+  if (documentBlocks.length > 0) {
+    result.push({
+      role: "user",
+      content: [FULL_DOCUMENT_TURN_REMINDER, ...documentBlocks].join("\n\n"),
+    });
+  }
 
-  for (const message of input.messages) {
+  const conversation = await buildConversationWithoutDocuments(
+    input.messages,
+    documentBlocks.length > 0,
+  );
+
+  const lastUserIndex = lastIndexOfRole(conversation, "user");
+  const history =
+    lastUserIndex >= 0 ? conversation.slice(0, lastUserIndex) : conversation;
+  const lastUser = lastUserIndex >= 0 ? conversation[lastUserIndex] : null;
+
+  result.push(...history);
+
+  if (lastUser) {
+    result.push(
+      prependTextToMessage(lastUser, input.retrievedContext?.trim() ?? ""),
+    );
+  } else if (input.retrievedContext?.trim()) {
+    result.push({ role: "user", content: input.retrievedContext.trim() });
+  }
+
+  return result;
+}
+
+async function collectDocumentBlocks(
+  messages: ChatMessagePayload[],
+): Promise<string[]> {
+  const blocks: string[] = [];
+
+  for (const message of messages) {
+    if (message.role !== "user") {
+      continue;
+    }
+
+    for (const attachment of message.attachments ?? []) {
+      const block = await documentBlockFromAttachment(attachment);
+      if (block) {
+        blocks.push(block);
+      }
+    }
+  }
+
+  return blocks;
+}
+
+async function documentBlockFromAttachment(
+  attachment: AttachmentPayload,
+): Promise<string | null> {
+  if (attachment.kind === "image") {
+    return null;
+  }
+
+  const extracted = await attachmentToTextOrImage(attachment);
+  if (extracted.kind === "image") {
+    return null;
+  }
+
+  if (isNearlyEmptyExtract(extracted.text)) {
+    return `--- Anexo: ${attachment.name} ---\n${EXTRACTION_FAILED_MODEL_NOTE}`;
+  }
+
+  return `--- Anexo: ${attachment.name} (texto integral extraído) ---\n${extracted.text}`;
+}
+
+async function buildConversationWithoutDocuments(
+  messages: ChatMessagePayload[],
+  hasDocuments: boolean,
+): Promise<OpenRouterMessage[]> {
+  const result: OpenRouterMessage[] = [];
+  const lastUserIndex = lastIndexOfRole(messages, "user");
+
+  for (let index = 0; index < messages.length; index += 1) {
+    const message = messages[index];
     if (message.role === "assistant") {
       result.push({ role: "assistant", content: message.content });
       continue;
     }
 
-    const { content, hasFullExtract } = await buildUserContent(message);
-    latestUserHasFullExtract = hasFullExtract;
+    const { content, isEmpty } = await buildUserContentWithoutDocuments(message);
+    if (isEmpty) {
+      if (index === lastUserIndex && hasDocuments) {
+        result.push({ role: "user", content: ANALYZE_ATTACHMENTS_FALLBACK });
+      }
+      continue;
+    }
+
     result.push({
       role: "user",
       content,
     });
   }
 
-  if (latestUserHasFullExtract) {
-    let lastUserIndex = -1;
-    for (let index = result.length - 1; index >= 0; index -= 1) {
-      if (result[index]?.role === "user") {
-        lastUserIndex = index;
-        break;
-      }
-    }
-    if (lastUserIndex >= 0) {
-      result.splice(lastUserIndex, 0, {
-        role: "system",
-        content: FULL_DOCUMENT_TURN_REMINDER,
-      });
-    }
-  }
-
   return result;
 }
 
-async function buildUserContent(message: ChatMessagePayload): Promise<{
+async function buildUserContentWithoutDocuments(
+  message: ChatMessagePayload,
+): Promise<{
   content: string | OpenRouterContentPart[];
-  hasFullExtract: boolean;
+  isEmpty: boolean;
 }> {
   const attachments = message.attachments ?? [];
-  const textParts: string[] = [];
   const imageParts: OpenRouterContentPart[] = [];
-  let hasFullExtract = false;
-
-  if (message.content.trim()) {
-    textParts.push(message.content.trim());
-  }
+  const text = message.content.trim();
 
   for (const attachment of attachments) {
+    if (attachment.kind !== "image") {
+      continue;
+    }
     const extracted = await attachmentToTextOrImage(attachment);
     if (extracted.kind === "image") {
       imageParts.push({
         type: "image_url",
         image_url: { url: extracted.dataUrl },
       });
-      textParts.push(`Anexo de imagem: ${attachment.name}`);
-      continue;
     }
-
-    if (isNearlyEmptyExtract(extracted.text)) {
-      textParts.push(
-        `--- Anexo: ${attachment.name} ---\n${EXTRACTION_FAILED_MODEL_NOTE}`,
-      );
-      continue;
-    }
-
-    hasFullExtract = true;
-    textParts.push(
-      `--- Anexo: ${attachment.name} (texto integral extraído) ---\n${extracted.text}`,
-    );
   }
 
-  const text = textParts.join("\n\n");
-  const content =
-    imageParts.length === 0
-      ? text || "(mensagem vazia)"
-      : [{ type: "text" as const, text: text || "Analise os anexos." }, ...imageParts];
+  if (!text && imageParts.length === 0) {
+    return { content: "(mensagem vazia)", isEmpty: true };
+  }
 
-  return { content, hasFullExtract };
+  if (imageParts.length === 0) {
+    return { content: text, isEmpty: false };
+  }
+
+  const imageNotes = attachments
+    .filter((attachment) => attachment.kind === "image")
+    .map((attachment) => `Anexo de imagem: ${attachment.name}`);
+  const combined = [text, ...imageNotes].filter(Boolean).join("\n\n");
+
+  return {
+    content: [
+      { type: "text" as const, text: combined || "Analise os anexos." },
+      ...imageParts,
+    ],
+    isEmpty: false,
+  };
 }
 
 async function attachmentToTextOrImage(
@@ -140,6 +218,70 @@ async function attachmentToTextOrImage(
   return { kind: "text", text };
 }
 
+function lastIndexOfRole<T extends { role: string }>(
+  items: T[],
+  role: T["role"],
+): number {
+  for (let index = items.length - 1; index >= 0; index -= 1) {
+    if (items[index]?.role === role) {
+      return index;
+    }
+  }
+  return -1;
+}
+
+function prependTextToMessage(
+  message: OpenRouterMessage,
+  prefix: string,
+): OpenRouterMessage {
+  if (!prefix) {
+    return message;
+  }
+
+  const content = message.content;
+  if (typeof content === "string") {
+    return { ...message, content: `${prefix}\n\n${content}` };
+  }
+
+  const parts = [...content];
+  const firstText = parts.findIndex((part) => part.type === "text");
+  if (firstText >= 0 && parts[firstText]?.type === "text") {
+    parts[firstText] = {
+      type: "text",
+      text: `${prefix}\n\n${parts[firstText].text}`,
+    };
+    return { ...message, content: parts };
+  }
+
+  return {
+    ...message,
+    content: [{ type: "text", text: prefix }, ...parts],
+  };
+}
+
+export function cacheTokensFromUsage(usage: OpenRouterUsage | undefined): {
+  cachedTokens: number;
+  cacheWriteTokens: number;
+} {
+  if (!usage) {
+    return { cachedTokens: 0, cacheWriteTokens: 0 };
+  }
+
+  const details = usage.prompt_tokens_details;
+  const cachedTokens =
+    details?.cached_tokens ??
+    usage.cached_tokens ??
+    usage.native_tokens_cached ??
+    0;
+  const cacheWriteTokens =
+    details?.cache_write_tokens ?? usage.cache_write_tokens ?? 0;
+
+  return {
+    cachedTokens: finiteCount(cachedTokens),
+    cacheWriteTokens: finiteCount(cacheWriteTokens),
+  };
+}
+
 export function usageFromChunk(
   model: string,
   usage: OpenRouterUsage | undefined,
@@ -147,6 +289,8 @@ export function usageFromChunk(
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;
+  cachedTokens: number;
+  cacheWriteTokens: number;
   costUsd: number;
   costSource: CostSource;
 } | null {
@@ -157,6 +301,7 @@ export function usageFromChunk(
   const promptTokens = usage.prompt_tokens ?? 0;
   const completionTokens = usage.completion_tokens ?? 0;
   const totalTokens = usage.total_tokens ?? promptTokens + completionTokens;
+  const { cachedTokens, cacheWriteTokens } = cacheTokensFromUsage(usage);
   const { costUsd, costSource } = resolveTurnCost({
     model,
     promptTokens,
@@ -164,5 +309,34 @@ export function usageFromChunk(
     openRouterCost: usage.cost,
   });
 
-  return { promptTokens, completionTokens, totalTokens, costUsd, costSource };
+  return {
+    promptTokens,
+    completionTokens,
+    totalTokens,
+    cachedTokens,
+    cacheWriteTokens,
+    costUsd,
+    costSource,
+  };
+}
+
+function finiteCount(value: number): number {
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+export function resolveOpenRouterSessionId(
+  bodySessionId: string | undefined,
+  headerSessionId: string | null,
+): string {
+  const fromBody = bodySessionId?.trim();
+  if (fromBody && fromBody.length <= 256) {
+    return fromBody;
+  }
+
+  const fromHeader = headerSessionId?.trim();
+  if (fromHeader && fromHeader.length <= 256) {
+    return fromHeader;
+  }
+
+  return crypto.randomUUID();
 }
