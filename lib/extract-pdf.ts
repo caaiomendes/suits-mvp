@@ -52,6 +52,7 @@ export async function extractPdfFromData(
         pages: total,
         chars: normalizeExtractedText(pages.join("\n\n")).length,
       });
+      await new Promise((resolve) => setTimeout(resolve, 0));
     }
   } finally {
     await pdf.destroy();
