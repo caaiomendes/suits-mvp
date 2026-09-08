@@ -56,11 +56,11 @@ export function ChatSidebar({
         />
       ) : null}
       <aside
-        className={`fixed inset-y-0 right-0 z-40 flex w-[min(22rem,100%)] flex-col border-l border-stone-200 bg-stone-50 transition-transform lg:static lg:z-0 lg:w-80 lg:translate-x-0 ${
+        className={`fixed inset-y-0 right-0 z-40 flex h-dvh w-[min(22rem,100%)] shrink-0 flex-col overflow-hidden border-l border-stone-200 bg-stone-50 transition-transform lg:static lg:z-0 lg:h-full lg:w-80 lg:translate-x-0 ${
           open ? "translate-x-0" : "translate-x-full lg:translate-x-0"
         }`}
       >
-        <div className="flex items-start justify-between border-b border-stone-200 px-5 py-4">
+        <div className="flex shrink-0 items-start justify-between border-b border-stone-200 px-5 py-4">
           <div>
             <p className="text-xs font-medium tracking-wide text-stone-500 uppercase">
               Custo da sessão
@@ -75,52 +75,53 @@ export function ChatSidebar({
           </div>
           <button
             type="button"
-            className="rounded-lg p-1 text-stone-400 hover:bg-stone-200 lg:hidden"
+            className="rounded-lg p-1 text-stone-400 hover:bg-stone-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-800/20 lg:hidden"
             onClick={onClose}
+            aria-label="Fechar painel"
           >
             ×
           </button>
         </div>
 
-        <dl className="grid grid-cols-2 gap-3 px-5 py-4 text-sm">
-          <div className="rounded-xl bg-white p-3 ring-1 ring-stone-200">
-            <dt className="text-xs text-stone-500">Prompt</dt>
-            <dd className="mt-1 font-medium text-stone-900">
-              {formatTokens(promptTokens)}
-            </dd>
-          </div>
-          <div className="rounded-xl bg-white p-3 ring-1 ring-stone-200">
-            <dt className="text-xs text-stone-500">Completion</dt>
-            <dd className="mt-1 font-medium text-stone-900">
-              {formatTokens(completionTokens)}
-            </dd>
-          </div>
-          <div className="col-span-2 rounded-xl bg-white p-3 ring-1 ring-stone-200">
-            <dt className="text-xs text-stone-500">Chat USD</dt>
-            <dd className="mt-1 font-medium text-stone-900">
-              {formatUsd(chatCostUsd)}
-            </dd>
-          </div>
-          <div className="rounded-xl bg-white p-3 ring-1 ring-stone-200">
-            <dt className="text-xs text-stone-500">Embeddings</dt>
-            <dd className="mt-1 font-medium text-stone-900">
-              {formatUsd(embeddingCostUsd)}
-            </dd>
-          </div>
-          <div className="rounded-xl bg-white p-3 ring-1 ring-stone-200">
-            <dt className="text-xs text-stone-500">Embed tokens</dt>
-            <dd className="mt-1 font-medium text-stone-900">
-              {formatTokens(embeddingTokens)}
-              {embeddingCalls > 0 ? (
-                <span className="block text-[11px] font-normal text-stone-500">
-                  {embeddingCalls} chamada{embeddingCalls === 1 ? "" : "s"}
-                </span>
-              ) : null}
-            </dd>
-          </div>
-        </dl>
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-5 py-4 pb-5">
+          <dl className="grid grid-cols-2 gap-3 text-sm">
+            <div className="rounded-xl bg-white p-3 ring-1 ring-stone-200">
+              <dt className="text-xs text-stone-500">Prompt</dt>
+              <dd className="mt-1 font-medium text-stone-900">
+                {formatTokens(promptTokens)}
+              </dd>
+            </div>
+            <div className="rounded-xl bg-white p-3 ring-1 ring-stone-200">
+              <dt className="text-xs text-stone-500">Completion</dt>
+              <dd className="mt-1 font-medium text-stone-900">
+                {formatTokens(completionTokens)}
+              </dd>
+            </div>
+            <div className="col-span-2 rounded-xl bg-white p-3 ring-1 ring-stone-200">
+              <dt className="text-xs text-stone-500">Chat USD</dt>
+              <dd className="mt-1 font-medium text-stone-900">
+                {formatUsd(chatCostUsd)}
+              </dd>
+            </div>
+            <div className="rounded-xl bg-white p-3 ring-1 ring-stone-200">
+              <dt className="text-xs text-stone-500">Embeddings</dt>
+              <dd className="mt-1 font-medium text-stone-900">
+                {formatUsd(embeddingCostUsd)}
+              </dd>
+            </div>
+            <div className="rounded-xl bg-white p-3 ring-1 ring-stone-200">
+              <dt className="text-xs text-stone-500">Embed tokens</dt>
+              <dd className="mt-1 font-medium text-stone-900">
+                {formatTokens(embeddingTokens)}
+                {embeddingCalls > 0 ? (
+                  <span className="block text-[11px] font-normal text-stone-500">
+                    {embeddingCalls} chamada{embeddingCalls === 1 ? "" : "s"}
+                  </span>
+                ) : null}
+              </dd>
+            </div>
+          </dl>
 
-        <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-5 pb-5">
           <label className="block text-sm">
             <span className="text-xs font-medium tracking-wide text-stone-500 uppercase">
               Agente
@@ -128,7 +129,7 @@ export function ChatSidebar({
             <select
               value={agentId}
               onChange={(event) => onAgentChange(event.target.value)}
-              className="mt-1 w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
+              className="mt-1 w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-800/20"
             >
               {agents.map((agent) => (
                 <option key={agent.id} value={agent.id}>
@@ -148,7 +149,7 @@ export function ChatSidebar({
             <select
               value={selectedModel?.id ?? DEFAULT_MODELS[0].id}
               onChange={(event) => onModelChange(event.target.value)}
-              className="mt-1 w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
+              className="mt-1 w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-800/20"
             >
               {DEFAULT_MODELS.map((item) => (
                 <option key={item.id} value={item.id}>
@@ -168,7 +169,7 @@ export function ChatSidebar({
           <button
             type="button"
             onClick={onReset}
-            className="rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-700 hover:bg-stone-100"
+            className="rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-700 hover:bg-stone-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-800/20"
           >
             Nova sessão
           </button>

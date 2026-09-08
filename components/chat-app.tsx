@@ -42,7 +42,7 @@ export function ChatApp() {
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const threadRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,7 +75,11 @@ export function ChatApp() {
   }, [model]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const pane = threadRef.current;
+    if (!pane) {
+      return;
+    }
+    pane.scrollTo({ top: pane.scrollHeight, behavior: "smooth" });
   }, [messages, streaming]);
 
   const totals = useMemo(() => {
@@ -302,9 +306,9 @@ export function ChatApp() {
   }
 
   return (
-    <div className="flex min-h-dvh bg-[#f4efe6] text-stone-900">
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-stone-200 bg-[#f4efe6]/90 px-4 py-3 backdrop-blur sm:px-6">
+    <div className="flex h-dvh max-h-dvh overflow-hidden bg-[#f4efe6] text-stone-900">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <header className="flex shrink-0 items-center justify-between border-b border-stone-200/80 bg-[#f4efe6]/95 px-4 py-3 backdrop-blur sm:px-6">
           <div>
             <p className="text-[11px] font-semibold tracking-[0.18em] text-amber-800/80 uppercase">
               Suits MVP
@@ -330,7 +334,7 @@ export function ChatApp() {
             </p>
             <button
               type="button"
-              className="rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-sm lg:hidden"
+              className="rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-sm text-stone-800 hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-800/20 lg:hidden"
               onClick={() => setSidebarOpen(true)}
             >
               Custo e modelo
@@ -338,32 +342,40 @@ export function ChatApp() {
           </div>
         </header>
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <ChatThread messages={messages} streaming={streaming} />
-          <div ref={bottomRef} />
+        <div
+          ref={threadRef}
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+        >
+          <ChatThread
+            messages={messages}
+            streaming={streaming}
+            onPickPrompt={setDraft}
+          />
         </div>
 
         {error ? (
-          <div className="px-4 sm:px-6">
+          <div className="shrink-0 px-4 pb-1 sm:px-6">
             <p className="mx-auto max-w-3xl rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">
               {error}
             </p>
           </div>
         ) : null}
 
-        <ChatComposer
-          value={draft}
-          files={files}
-          disabled={streaming}
-          onChange={setDraft}
-          onFiles={addFiles}
-          onRemoveFile={(name) =>
-            setFiles((current) => current.filter((file) => file.name !== name))
-          }
-          onSubmit={() => {
-            void sendMessage();
-          }}
-        />
+        <div className="shrink-0">
+          <ChatComposer
+            value={draft}
+            files={files}
+            disabled={streaming}
+            onChange={setDraft}
+            onFiles={addFiles}
+            onRemoveFile={(name) =>
+              setFiles((current) => current.filter((file) => file.name !== name))
+            }
+            onSubmit={() => {
+              void sendMessage();
+            }}
+          />
+        </div>
       </div>
 
       <ChatSidebar
