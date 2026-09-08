@@ -1,4 +1,4 @@
-const MAX_EXTRACTED_CHARS = 80_000;
+import { truncateExtractedText } from "./extract-limits";
 
 export async function extractBinaryAttachment(
   mimeType: string,
@@ -9,7 +9,7 @@ export async function extractBinaryAttachment(
   const lowerName = name.toLowerCase();
 
   if (mimeType === "application/pdf" || lowerName.endsWith(".pdf")) {
-    return truncate(await extractPdfText(bytes));
+    return truncateExtractedText(await extractPdfText(bytes));
   }
 
   if (
@@ -17,7 +17,7 @@ export async function extractBinaryAttachment(
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
     lowerName.endsWith(".docx")
   ) {
-    return truncate(await extractDocxText(bytes));
+    return truncateExtractedText(await extractDocxText(bytes));
   }
 
   throw new Error(`Tipo de anexo não suportado: ${name}`);
@@ -33,12 +33,4 @@ async function extractDocxText(bytes: Buffer): Promise<string> {
   const mammoth = (await import("mammoth")).default;
   const result = await mammoth.extractRawText({ buffer: bytes });
   return result.value.trim();
-}
-
-function truncate(text: string): string {
-  if (text.length <= MAX_EXTRACTED_CHARS) {
-    return text;
-  }
-
-  return `${text.slice(0, MAX_EXTRACTED_CHARS)}\n\n[Texto truncado para o limite da sessão.]`;
 }

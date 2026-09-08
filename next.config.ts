@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["unpdf", "mammoth"],
+  transpilePackages: ["pdfjs-dist"],
   outputFileTracingIncludes: {
     "/api/chat": [
       "./prompts/criminalista/*.md",

@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { filesToAttachments, isAcceptedFile } from "@/lib/attachments";
+import {
+  filesToAttachments,
+  fileSizeLimitMessage,
+  isAcceptedFile,
+  MAX_FILE_BYTES,
+  MAX_IMAGE_BYTES,
+} from "@/lib/attachments";
 import { DEFAULT_MODEL_ID, isAllowedChatModel } from "@/lib/models";
 import { readChatSse } from "@/lib/sse";
 import type {
@@ -135,6 +141,14 @@ export function ChatApp() {
     const next = Array.from(list).filter((file) => {
       if (!isAcceptedFile(file)) {
         setError(`Tipo não suportado: ${file.name}`);
+        return false;
+      }
+      if (file.size > MAX_FILE_BYTES) {
+        setError(fileSizeLimitMessage(file.name, MAX_FILE_BYTES));
+        return false;
+      }
+      if (file.type.startsWith("image/") && file.size > MAX_IMAGE_BYTES) {
+        setError(fileSizeLimitMessage(file.name, MAX_IMAGE_BYTES));
         return false;
       }
       return true;
