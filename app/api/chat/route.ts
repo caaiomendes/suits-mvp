@@ -15,7 +15,7 @@ import type { RetrievalResult } from "@/lib/rag/types";
 import type { ChatRequestBody, StreamEvent } from "@/lib/types";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const encoder = new TextEncoder();
 
