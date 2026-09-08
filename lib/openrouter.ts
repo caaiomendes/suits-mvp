@@ -17,6 +17,35 @@ const ANALYZE_ATTACHMENTS_FALLBACK = "Analise o(s) anexo(s).";
 export const OPENROUTER_CHAT_URL =
   "https://openrouter.ai/api/v1/chat/completions";
 
+/** OpenRouter `provider_name` slugs from `/api/v1/models/z-ai/glm-5.3-flash/endpoints`. */
+export const GLM_PREFERRED_PROVIDERS = ["Z.AI", "Novita", "GMICloud"] as const;
+export const GLM_IGNORED_PROVIDERS = ["Wafer"] as const;
+
+export type OpenRouterProviderPreferences = {
+  order: string[];
+  allow_fallbacks: boolean;
+  ignore: string[];
+};
+
+/**
+ * Sticky promo+cache routing for GLM. Prefer Z.AI / Novita / GMICloud
+ * ($0.075/$0.25 + input_cache_read). Skip Wafer ($0.10/$0.35, no promo).
+ * `allow_fallbacks` still reaches other non-Wafer endpoints if those three fail.
+ */
+export function providerRoutingForModel(
+  model: string,
+): OpenRouterProviderPreferences | undefined {
+  if (!model.startsWith("z-ai/")) {
+    return undefined;
+  }
+
+  return {
+    order: [...GLM_PREFERRED_PROVIDERS],
+    allow_fallbacks: true,
+    ignore: [...GLM_IGNORED_PROVIDERS],
+  };
+}
+
 export type OpenRouterContentPart =
   | { type: "text"; text: string }
   | { type: "image_url"; image_url: { url: string } };

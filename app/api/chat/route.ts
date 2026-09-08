@@ -3,6 +3,7 @@ import { isAllowedChatModel } from "@/lib/models";
 import {
   OPENROUTER_CHAT_URL,
   buildOpenRouterMessages,
+  providerRoutingForModel,
   resolveOpenRouterSessionId,
   usageFromChunk,
   type OpenRouterUsage,
@@ -91,6 +92,7 @@ export async function POST(request: Request) {
   }
 
   // Commercial OpenRouter only — no Ollama / vLLM / self-hosted runtime.
+  const provider = providerRoutingForModel(model);
   const upstream = await fetch(OPENROUTER_CHAT_URL, {
     method: "POST",
     headers: {
@@ -107,6 +109,7 @@ export async function POST(request: Request) {
       stream: true,
       session_id: sessionId,
       prompt_cache_key: sessionId,
+      ...(provider ? { provider } : {}),
     }),
   });
 

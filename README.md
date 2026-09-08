@@ -99,6 +99,8 @@ Multi-turn chats with a large PDF need a **stable session** and a **stable prefi
 
 The cost sidebar shows session totals from stream `usage.prompt_tokens_details`: **Cache: X tok lidos / Y tok escritos** (`cached_tokens` / `cache_write_tokens`). Subsequent turns can report `cached_tokens > 0` when the provider caches. `session_id` is always set on the upstream request (the server generates a UUID if the client omitted one).
 
+GLM (`z-ai/*`, including `z-ai/glm-5.3-flash`) is pinned to OpenRouter providers **Z.AI → Novita → GMICloud** (promo $0.075/$0.25 + `input_cache_read`). Wafer is ignored so load-balancing cannot pick the $0.10/$0.35 list.
+
 ## Cost
 
 - Chat: OpenRouter stream `usage` (prefer `usage.cost`, else `lib/models.ts` table).
