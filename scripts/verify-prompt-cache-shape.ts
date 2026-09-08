@@ -1,6 +1,9 @@
 import {
+  GLM_IGNORED_PROVIDERS,
+  GLM_PREFERRED_PROVIDERS,
   buildOpenRouterMessages,
   cacheTokensFromUsage,
+  providerRoutingForModel,
   resolveOpenRouterSessionId,
 } from "../lib/openrouter";
 import type { ChatMessagePayload } from "../lib/types";
@@ -112,7 +115,23 @@ async function main() {
     throw new Error("session_id deve ser gerado quando o cliente omite.");
   }
 
-  console.log("ok prompt-cache shape + session_id + usage details");
+  const glmRouting = providerRoutingForModel("z-ai/glm-5.3-flash");
+  if (
+    !glmRouting ||
+    glmRouting.order.join(",") !== GLM_PREFERRED_PROVIDERS.join(",") ||
+    glmRouting.allow_fallbacks !== true ||
+    glmRouting.ignore.join(",") !== GLM_IGNORED_PROVIDERS.join(",")
+  ) {
+    throw new Error("GLM deve pinar Z.AI / Novita / GMICloud e ignorar Wafer.");
+  }
+  if (providerRoutingForModel("z-ai/glm-4.6")?.order[0] !== "Z.AI") {
+    throw new Error("Qualquer modelo z-ai/* deve usar o mesmo provider.order.");
+  }
+  if (providerRoutingForModel("openai/gpt-5.6-luna") !== undefined) {
+    throw new Error("Modelos não-GLM não devem enviar provider routing.");
+  }
+
+  console.log("ok prompt-cache shape + session_id + usage details + glm routing");
 }
 
 void main();
