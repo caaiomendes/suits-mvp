@@ -57,7 +57,7 @@ export const DEFAULT_MODELS: ModelOption[] = [
   },
 ];
 
-export const DEFAULT_MODEL_ID = "openai/gpt-5.6-luna";
+export const DEFAULT_MODEL_ID = "z-ai/glm-5.3-flash";
 
 const ALLOWED_CHAT_MODEL_IDS = new Set(DEFAULT_MODELS.map((model) => model.id));
 
