@@ -1,4 +1,6 @@
 import {
+  DEEPSEEK_IGNORED_PROVIDERS,
+  DEEPSEEK_PREFERRED_PROVIDERS,
   GLM_IGNORED_PROVIDERS,
   GLM_PREFERRED_PROVIDERS,
   buildOpenRouterMessages,
@@ -127,11 +129,33 @@ async function main() {
   if (providerRoutingForModel("z-ai/glm-4.6")?.order[0] !== "Z.AI") {
     throw new Error("Qualquer modelo z-ai/* deve usar o mesmo provider.order.");
   }
+
+  const deepseekRouting = providerRoutingForModel(
+    "deepseek/deepseek-v4-flash-0731",
+  );
+  if (
+    !deepseekRouting ||
+    deepseekRouting.order.join(",") !== DEEPSEEK_PREFERRED_PROVIDERS.join(",") ||
+    deepseekRouting.allow_fallbacks !== true ||
+    deepseekRouting.ignore.join(",") !== DEEPSEEK_IGNORED_PROVIDERS.join(",")
+  ) {
+    throw new Error(
+      "DeepSeek deve pinar OpenInference / DeepInfra / Sail Research / DeepSeek e ignorar DigitalOcean.",
+    );
+  }
+  if (providerRoutingForModel("deepseek/deepseek-chat")?.order[0] !== "OpenInference") {
+    throw new Error("Qualquer modelo deepseek/* deve usar o mesmo provider.order.");
+  }
+  if (!deepseekRouting.ignore.includes("DigitalOcean")) {
+    throw new Error("DeepSeek deve ignorar DigitalOcean.");
+  }
   if (providerRoutingForModel("openai/gpt-5.6-luna") !== undefined) {
-    throw new Error("Modelos não-GLM não devem enviar provider routing.");
+    throw new Error("Modelos sem pin não devem enviar provider routing.");
   }
 
-  console.log("ok prompt-cache shape + session_id + usage details + glm routing");
+  console.log(
+    "ok prompt-cache shape + session_id + usage details + glm/deepseek routing",
+  );
 }
 
 void main();

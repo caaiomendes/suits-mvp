@@ -101,6 +101,8 @@ The cost sidebar shows session totals from stream `usage.prompt_tokens_details`:
 
 GLM (`z-ai/*`, including `z-ai/glm-5.3-flash`) is pinned to OpenRouter providers **Z.AI → Novita → GMICloud** (promo $0.075/$0.25 + `input_cache_read`). Wafer is ignored so load-balancing cannot pick the $0.10/$0.35 list.
 
+DeepSeek (`deepseek/*`, including `deepseek/deepseek-v4-flash-0731`) is pinned to **OpenInference → DeepInfra → Sail Research → DeepSeek**. DigitalOcean is ignored after EngineCore upstream failures on large PDFs.
+
 ## Cost
 
 - Chat: OpenRouter stream `usage` (prefer `usage.cost`, else `lib/models.ts` table).
