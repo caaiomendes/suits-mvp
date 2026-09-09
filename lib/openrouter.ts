@@ -21,6 +21,15 @@ export const OPENROUTER_CHAT_URL =
 export const GLM_PREFERRED_PROVIDERS = ["Z.AI", "Novita", "GMICloud"] as const;
 export const GLM_IGNORED_PROVIDERS = ["Wafer"] as const;
 
+/** OpenRouter `provider_name` slugs from `/api/v1/models/deepseek/deepseek-v4-flash-0731/endpoints`. */
+export const DEEPSEEK_PREFERRED_PROVIDERS = [
+  "OpenInference",
+  "DeepInfra",
+  "Sail Research",
+  "DeepSeek",
+] as const;
+export const DEEPSEEK_IGNORED_PROVIDERS = ["DigitalOcean"] as const;
+
 export type OpenRouterProviderPreferences = {
   order: string[];
   allow_fallbacks: boolean;
@@ -28,22 +37,33 @@ export type OpenRouterProviderPreferences = {
 };
 
 /**
- * Sticky promo+cache routing for GLM. Prefer Z.AI / Novita / GMICloud
- * ($0.075/$0.25 + input_cache_read). Skip Wafer ($0.10/$0.35, no promo).
- * `allow_fallbacks` still reaches other non-Wafer endpoints if those three fail.
+ * Sticky OpenRouter provider routing.
+ * GLM: prefer Z.AI / Novita / GMICloud ($0.075/$0.25 + input_cache_read).
+ * Skip Wafer ($0.10/$0.35, no promo).
+ * DeepSeek: prefer OpenInference / DeepInfra / Sail Research / DeepSeek.
+ * Skip DigitalOcean (EngineCore failures on large PDFs).
+ * `allow_fallbacks` still reaches other non-ignored endpoints if the preferred list fails.
  */
 export function providerRoutingForModel(
   model: string,
 ): OpenRouterProviderPreferences | undefined {
-  if (!model.startsWith("z-ai/")) {
-    return undefined;
+  if (model.startsWith("z-ai/")) {
+    return {
+      order: [...GLM_PREFERRED_PROVIDERS],
+      allow_fallbacks: true,
+      ignore: [...GLM_IGNORED_PROVIDERS],
+    };
   }
 
-  return {
-    order: [...GLM_PREFERRED_PROVIDERS],
-    allow_fallbacks: true,
-    ignore: [...GLM_IGNORED_PROVIDERS],
-  };
+  if (model.startsWith("deepseek/")) {
+    return {
+      order: [...DEEPSEEK_PREFERRED_PROVIDERS],
+      allow_fallbacks: true,
+      ignore: [...DEEPSEEK_IGNORED_PROVIDERS],
+    };
+  }
+
+  return undefined;
 }
 
 export type OpenRouterContentPart =
